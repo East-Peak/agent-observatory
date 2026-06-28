@@ -1,0 +1,21 @@
+# dependencies
+node_modules
+
+# build output
+dist
+tsconfig.tsbuildinfo
+
+# test / coverage
+coverage
+
+# verifier logs
+.verify-logs/
+
+# generated snapshot (rebuilt from fixtures)
+data/snapshot.json
+
+# raw ccusage captures (regenerated, not committed)
+data/fixtures/raw-*
+
+# OS cruft
+.DS_Store
