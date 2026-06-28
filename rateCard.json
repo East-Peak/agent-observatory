@@ -1,0 +1,44 @@
+{
+  "version": "v1-2026-06-27",
+  "asOf": "2026-06-27",
+  "unit": "picoUsdPerToken",
+  "note": "FROZEN reference data. Integer pico-USD per token (= USD-per-Mtok x 1,000,000). Point-in-time / effective-dated (SCD Type 2): a record is priced by the band whose [effectiveFrom, effectiveTo) window contains its date. A price change APPENDS a band (close the open one, open a new one) — never overwrites, so history never re-prices. Provenance + estimate flags in data/fixtures/oracle-ledger.md. Bumping is a deliberate re-baseline (re-derive goldens + re-tag). reasoning rate = output rate (only Codex carries reasoning tokens). effectiveFrom floor 2026-01-01 covers all existing history (earliest log 2026-02-19).",
+  "rates": {
+    "claude-opus-4-8": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "5000000", "output": "25000000", "cacheCreation": "6250000", "cacheRead": "500000", "reasoning": "25000000" }
+    ],
+    "claude-opus-4-8-fast": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "10000000", "output": "50000000", "cacheCreation": "12500000", "cacheRead": "1000000", "reasoning": "50000000" }
+    ],
+    "claude-opus-4-7": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "5000000", "output": "25000000", "cacheCreation": "6250000", "cacheRead": "500000", "reasoning": "25000000" }
+    ],
+    "claude-opus-4-7-fast": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "30000000", "output": "150000000", "cacheCreation": "37500000", "cacheRead": "3000000", "reasoning": "150000000" }
+    ],
+    "claude-opus-4-6": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "5000000", "output": "25000000", "cacheCreation": "6250000", "cacheRead": "500000", "reasoning": "25000000" }
+    ],
+    "claude-sonnet-4-6": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "3000000", "output": "15000000", "cacheCreation": "3750000", "cacheRead": "300000", "reasoning": "15000000" }
+    ],
+    "claude-haiku-4-5-20251001": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "1000000", "output": "5000000", "cacheCreation": "1250000", "cacheRead": "100000", "reasoning": "5000000" }
+    ],
+    "claude-fable-5": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "10000000", "output": "50000000", "cacheCreation": "12500000", "cacheRead": "1000000", "reasoning": "50000000" }
+    ],
+    "gpt-5.3-codex": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "1750000", "output": "14000000", "cacheCreation": "1750000", "cacheRead": "175000", "reasoning": "14000000" }
+    ],
+    "gpt-5.4": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "2500000", "output": "15000000", "cacheCreation": "2500000", "cacheRead": "250000", "reasoning": "15000000" }
+    ],
+    "gpt-5.4-mini": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "250000", "output": "2000000", "cacheCreation": "250000", "cacheRead": "25000", "reasoning": "2000000" }
+    ],
+    "gpt-5.5": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "5000000", "output": "30000000", "cacheCreation": "5000000", "cacheRead": "500000", "reasoning": "30000000" }
+    ]
+  }
+}
