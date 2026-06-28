@@ -1,0 +1,65 @@
+{
+  "_note": "FROZEN, SCRUBBED 2-day slice of a real `ccusage codex daily --json` envelope. Keys/shape/modelName/date preserved; token/cost NUMBERS replaced with synthetic round values. Exercises the Codex envelope's divergence from Claude: per-model `models{}` map and `reasoningOutputTokens` (mapped to the canonical `reasoningTokens`). Decoded field-by-field by the ccusage-decoder-contract gate via the app's decodeCodexDaily.",
+  "daily": [
+    {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 7000000,
+      "costUSD": 6.0,
+      "date": "2026-02-25",
+      "inputTokens": 700000,
+      "models": {
+        "gpt-5.3-codex": {
+          "cacheCreationTokens": 0,
+          "cacheReadTokens": 7000000,
+          "inputTokens": 700000,
+          "isFallback": false,
+          "outputTokens": 45000,
+          "reasoningOutputTokens": 20000,
+          "totalTokens": 7765000
+        }
+      },
+      "outputTokens": 45000,
+      "reasoningOutputTokens": 20000,
+      "totalTokens": 7765000
+    },
+    {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 62500000,
+      "costUSD": 70.0,
+      "date": "2026-03-22",
+      "inputTokens": 5000000,
+      "models": {
+        "gpt-5.3-codex": {
+          "cacheCreationTokens": 0,
+          "cacheReadTokens": 7500000,
+          "inputTokens": 1000000,
+          "isFallback": false,
+          "outputTokens": 60000,
+          "reasoningOutputTokens": 40000,
+          "totalTokens": 8600000
+        },
+        "gpt-5.4": {
+          "cacheCreationTokens": 0,
+          "cacheReadTokens": 55000000,
+          "inputTokens": 4000000,
+          "isFallback": false,
+          "outputTokens": 500000,
+          "reasoningOutputTokens": 300000,
+          "totalTokens": 59800000
+        }
+      },
+      "outputTokens": 560000,
+      "reasoningOutputTokens": 340000,
+      "totalTokens": 68400000
+    }
+  ],
+  "totals": {
+    "cacheCreationTokens": 0,
+    "cacheReadTokens": 69500000,
+    "costUSD": 76.0,
+    "inputTokens": 5700000,
+    "outputTokens": 605000,
+    "reasoningOutputTokens": 360000,
+    "totalTokens": 76165000
+  }
+}

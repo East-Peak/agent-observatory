@@ -1,0 +1,986 @@
+{
+  "note": "FROZEN golden — expected RAW house-style DOM values for spendOverview at named (range, source) states, anchored to snapshot.asOf. Derived independently of the panel in oracle-ledger.md (native-Date windows + verified normalizeCost/aggregateByDay). The panel-golden gate requires coverage; tests/panels/spendOverview.golden.test.tsx asserts the live panel reproduces these exactly.",
+  "asOf": "2026-06-27",
+  "rateCardVersion": "v1-2026-06-27",
+  "panels": {
+    "spendOverview": {
+      "states": [
+        {
+          "range": "all",
+          "source": "all",
+          "from": "2026-05-19",
+          "to": "2026-06-27",
+          "metrics": {
+            "total-cost": {
+              "value": "703406512550000",
+              "kind": "cost"
+            },
+            "total-tokens": {
+              "value": "965926512",
+              "kind": "tokens"
+            },
+            "active-days": {
+              "value": "40",
+              "kind": "count"
+            },
+            "delta-cost": {
+              "value": "703406512550000",
+              "kind": "cost"
+            },
+            "delta-pct": {
+              "value": "0",
+              "kind": "percent"
+            }
+          },
+          "series": [
+            {
+              "date": "2026-05-19",
+              "value": "16275426700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-20",
+              "value": "12022282900000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-21",
+              "value": "9409742500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-22",
+              "value": "27957981150000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-23",
+              "value": "10277923800000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-24",
+              "value": "30333091500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-25",
+              "value": "26828877250000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-26",
+              "value": "10042621350000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-27",
+              "value": "15910328950000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-28",
+              "value": "30222479700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-29",
+              "value": "11105008200000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-30",
+              "value": "18288769550000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-31",
+              "value": "31848301750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-01",
+              "value": "12416738150000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-02",
+              "value": "16220480100000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-03",
+              "value": "21015261200000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-04",
+              "value": "14335110900000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-05",
+              "value": "19791015900000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-06",
+              "value": "19876222100000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-07",
+              "value": "11767740900000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-08",
+              "value": "22469623100000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-09",
+              "value": "33407448700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-10",
+              "value": "30870862000000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-11",
+              "value": "9213379450000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-12",
+              "value": "14065448650000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-13",
+              "value": "17030275400000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-14",
+              "value": "10654297150000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-15",
+              "value": "18476657400000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-16",
+              "value": "3153610500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-17",
+              "value": "25776100500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-18",
+              "value": "8332966850000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-19",
+              "value": "10238952700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-20",
+              "value": "30983037350000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-21",
+              "value": "18360513050000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-22",
+              "value": "21963192700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-23",
+              "value": "17414275650000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-24",
+              "value": "12340461000000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-25",
+              "value": "9763029250000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-26",
+              "value": "11360472700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-27",
+              "value": "11586503900000",
+              "kind": "cost"
+            }
+          ]
+        },
+        {
+          "range": "last7",
+          "source": "all",
+          "from": "2026-06-21",
+          "to": "2026-06-27",
+          "metrics": {
+            "total-cost": {
+              "value": "102788448250000",
+              "kind": "cost"
+            },
+            "total-tokens": {
+              "value": "137773058",
+              "kind": "tokens"
+            },
+            "active-days": {
+              "value": "7",
+              "kind": "count"
+            },
+            "delta-cost": {
+              "value": "-4827174200000",
+              "kind": "cost"
+            },
+            "delta-pct": {
+              "value": "-448",
+              "kind": "percent"
+            }
+          },
+          "series": [
+            {
+              "date": "2026-06-21",
+              "value": "18360513050000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-22",
+              "value": "21963192700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-23",
+              "value": "17414275650000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-24",
+              "value": "12340461000000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-25",
+              "value": "9763029250000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-26",
+              "value": "11360472700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-27",
+              "value": "11586503900000",
+              "kind": "cost"
+            }
+          ]
+        },
+        {
+          "range": "thisMonth",
+          "source": "all",
+          "from": "2026-06-01",
+          "to": "2026-06-27",
+          "metrics": {
+            "total-cost": {
+              "value": "452883677250000",
+              "kind": "cost"
+            },
+            "total-tokens": {
+              "value": "629015353",
+              "kind": "tokens"
+            },
+            "active-days": {
+              "value": "27",
+              "kind": "count"
+            },
+            "delta-cost": {
+              "value": "202360841950000",
+              "kind": "cost"
+            },
+            "delta-pct": {
+              "value": "8077",
+              "kind": "percent"
+            }
+          },
+          "series": [
+            {
+              "date": "2026-06-01",
+              "value": "12416738150000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-02",
+              "value": "16220480100000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-03",
+              "value": "21015261200000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-04",
+              "value": "14335110900000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-05",
+              "value": "19791015900000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-06",
+              "value": "19876222100000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-07",
+              "value": "11767740900000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-08",
+              "value": "22469623100000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-09",
+              "value": "33407448700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-10",
+              "value": "30870862000000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-11",
+              "value": "9213379450000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-12",
+              "value": "14065448650000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-13",
+              "value": "17030275400000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-14",
+              "value": "10654297150000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-15",
+              "value": "18476657400000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-16",
+              "value": "3153610500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-17",
+              "value": "25776100500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-18",
+              "value": "8332966850000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-19",
+              "value": "10238952700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-20",
+              "value": "30983037350000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-21",
+              "value": "18360513050000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-22",
+              "value": "21963192700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-23",
+              "value": "17414275650000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-24",
+              "value": "12340461000000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-25",
+              "value": "9763029250000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-26",
+              "value": "11360472700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-27",
+              "value": "11586503900000",
+              "kind": "cost"
+            }
+          ]
+        },
+        {
+          "range": "last30",
+          "source": "claude",
+          "from": "2026-05-29",
+          "to": "2026-06-27",
+          "metrics": {
+            "total-cost": {
+              "value": "336713989600000",
+              "kind": "cost"
+            },
+            "total-tokens": {
+              "value": "418872218",
+              "kind": "tokens"
+            },
+            "active-days": {
+              "value": "30",
+              "kind": "count"
+            },
+            "delta-cost": {
+              "value": "215927444450000",
+              "kind": "cost"
+            },
+            "delta-pct": {
+              "value": "17876",
+              "kind": "percent"
+            }
+          },
+          "series": [
+            {
+              "date": "2026-05-29",
+              "value": "3511236700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-30",
+              "value": "18288769550000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-31",
+              "value": "21268716850000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-01",
+              "value": "4782569800000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-02",
+              "value": "13266134400000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-03",
+              "value": "17989307450000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-04",
+              "value": "10200303400000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-05",
+              "value": "15078972750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-06",
+              "value": "11838483750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-07",
+              "value": "6719676850000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-08",
+              "value": "16505297850000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-09",
+              "value": "24827097700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-10",
+              "value": "15459884500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-11",
+              "value": "7125010950000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-12",
+              "value": "11954215900000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-13",
+              "value": "11312961250000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-14",
+              "value": "9054028600000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-15",
+              "value": "4520301250000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-16",
+              "value": "1373303750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-17",
+              "value": "15296697750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-18",
+              "value": "2182462500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-19",
+              "value": "6410945350000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-20",
+              "value": "24104945300000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-21",
+              "value": "8017525300000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-22",
+              "value": "14931086300000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-23",
+              "value": "15704464150000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-24",
+              "value": "3943482250000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-25",
+              "value": "6384896250000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-26",
+              "value": "6013603750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-27",
+              "value": "8647607450000",
+              "kind": "cost"
+            }
+          ]
+        },
+        {
+          "range": "all",
+          "source": "codex",
+          "from": "2026-05-19",
+          "to": "2026-06-27",
+          "metrics": {
+            "total-cost": {
+              "value": "174091569500000",
+              "kind": "cost"
+            },
+            "total-tokens": {
+              "value": "261728456",
+              "kind": "tokens"
+            },
+            "active-days": {
+              "value": "32",
+              "kind": "count"
+            },
+            "delta-cost": {
+              "value": "174091569500000",
+              "kind": "cost"
+            },
+            "delta-pct": {
+              "value": "0",
+              "kind": "percent"
+            }
+          },
+          "series": [
+            {
+              "date": "2026-05-19",
+              "value": "5697477500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-20",
+              "value": "6307914250000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-22",
+              "value": "10230293000000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-23",
+              "value": "4527651500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-24",
+              "value": "9762645500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-25",
+              "value": "1250018750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-26",
+              "value": "3467270750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-27",
+              "value": "2609219000000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-28",
+              "value": "8676762750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-29",
+              "value": "7593771500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-31",
+              "value": "8620894500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-01",
+              "value": "4284830500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-03",
+              "value": "3025953750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-04",
+              "value": "4134807500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-06",
+              "value": "3997356500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-07",
+              "value": "3181812500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-08",
+              "value": "5964325250000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-09",
+              "value": "8580351000000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-10",
+              "value": "12733443750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-11",
+              "value": "2088368500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-12",
+              "value": "2111232750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-13",
+              "value": "4706798500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-15",
+              "value": "10335977000000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-16",
+              "value": "1780306750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-17",
+              "value": "5898858750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-18",
+              "value": "4313117750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-20",
+              "value": "4399390500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-21",
+              "value": "6980087500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-22",
+              "value": "3345708500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-23",
+              "value": "1709811500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-24",
+              "value": "8396978750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-25",
+              "value": "3378133000000",
+              "kind": "cost"
+            }
+          ]
+        },
+        {
+          "range": "all",
+          "source": "openclaw",
+          "from": "2026-05-19",
+          "to": "2026-06-27",
+          "metrics": {
+            "total-cost": {
+              "value": "71814408300000",
+              "kind": "cost"
+            },
+            "total-tokens": {
+              "value": "131991925",
+              "kind": "tokens"
+            },
+            "active-days": {
+              "value": "23",
+              "kind": "count"
+            },
+            "delta-cost": {
+              "value": "71814408300000",
+              "kind": "cost"
+            },
+            "delta-pct": {
+              "value": "0",
+              "kind": "percent"
+            }
+          },
+          "series": [
+            {
+              "date": "2026-05-19",
+              "value": "2782027800000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-20",
+              "value": "2182206600000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-24",
+              "value": "4116976500000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-26",
+              "value": "2968066350000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-28",
+              "value": "3915680400000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-05-31",
+              "value": "1958690400000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-01",
+              "value": "3349337850000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-02",
+              "value": "2954345700000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-05",
+              "value": "4712043150000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-06",
+              "value": "4040381850000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-07",
+              "value": "1866251550000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-10",
+              "value": "2677533750000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-13",
+              "value": "1010515650000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-14",
+              "value": "1600268550000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-15",
+              "value": "3620379150000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-17",
+              "value": "4580544000000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-18",
+              "value": "1837386600000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-19",
+              "value": "3828007350000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-20",
+              "value": "2478701550000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-21",
+              "value": "3362900250000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-22",
+              "value": "3686397900000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-26",
+              "value": "5346868950000",
+              "kind": "cost"
+            },
+            {
+              "date": "2026-06-27",
+              "value": "2938896450000",
+              "kind": "cost"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

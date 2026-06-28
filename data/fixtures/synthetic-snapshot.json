@@ -1,0 +1,1615 @@
+{
+  "asOf": "2026-06-27",
+  "records": [
+    {
+      "source": "claude",
+      "date": "2026-05-19",
+      "model": "claude-opus-4-8",
+      "inputTokens": 772,
+      "outputTokens": 18195,
+      "cacheCreationTokens": 456992,
+      "cacheReadTokens": 2075330,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-19",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 406,
+      "outputTokens": 9087,
+      "cacheCreationTokens": 77330,
+      "cacheReadTokens": 10052703,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-19",
+      "model": "gpt-5.5",
+      "inputTokens": 2247,
+      "outputTokens": 10383,
+      "cacheCreationTokens": 127192,
+      "cacheReadTokens": 8666505,
+      "reasoningTokens": 13518
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-05-19",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 585,
+      "outputTokens": 21279,
+      "cacheCreationTokens": 558322,
+      "cacheReadTokens": 1224601,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-20",
+      "model": "claude-opus-4-8",
+      "inputTokens": 3437,
+      "outputTokens": 6044,
+      "cacheCreationTokens": 173453,
+      "cacheReadTokens": 481847,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-20",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 3264,
+      "outputTokens": 19795,
+      "cacheCreationTokens": 385256,
+      "cacheReadTokens": 958151,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-20",
+      "model": "gpt-5.5",
+      "inputTokens": 3754,
+      "outputTokens": 7566,
+      "cacheCreationTokens": 210128,
+      "cacheReadTokens": 657765,
+      "reasoningTokens": 3143
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-20",
+      "model": "gpt-5.4",
+      "inputTokens": 614,
+      "outputTokens": 24779,
+      "cacheCreationTokens": 568639,
+      "cacheReadTokens": 9720037,
+      "reasoningTokens": 24235
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-05-20",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2147,
+      "outputTokens": 2745,
+      "cacheCreationTokens": 499446,
+      "cacheReadTokens": 872227,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-21",
+      "model": "claude-opus-4-8",
+      "inputTokens": 1569,
+      "outputTokens": 1332,
+      "cacheCreationTokens": 591832,
+      "cacheReadTokens": 4605491,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-21",
+      "model": "claude-fable-5",
+      "inputTokens": 3409,
+      "outputTokens": 24447,
+      "cacheCreationTokens": 144912,
+      "cacheReadTokens": 299062,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-22",
+      "model": "claude-opus-4-8",
+      "inputTokens": 834,
+      "outputTokens": 3984,
+      "cacheCreationTokens": 84653,
+      "cacheReadTokens": 1274854,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-22",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2644,
+      "outputTokens": 27727,
+      "cacheCreationTokens": 573391,
+      "cacheReadTokens": 4172364,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-22",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 2873,
+      "outputTokens": 26578,
+      "cacheCreationTokens": 253539,
+      "cacheReadTokens": 10051172,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-22",
+      "model": "claude-fable-5",
+      "inputTokens": 1063,
+      "outputTokens": 923,
+      "cacheCreationTokens": 408775,
+      "cacheReadTokens": 6007376,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-22",
+      "model": "gpt-5.5",
+      "inputTokens": 2955,
+      "outputTokens": 7386,
+      "cacheCreationTokens": 129660,
+      "cacheReadTokens": 9813494,
+      "reasoningTokens": 27400
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-22",
+      "model": "gpt-5.4",
+      "inputTokens": 1061,
+      "outputTokens": 7802,
+      "cacheCreationTokens": 140387,
+      "cacheReadTokens": 11046444,
+      "reasoningTokens": 25642
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-23",
+      "model": "claude-opus-4-8",
+      "inputTokens": 2518,
+      "outputTokens": 24631,
+      "cacheCreationTokens": 319802,
+      "cacheReadTokens": 3911649,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-23",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 2288,
+      "outputTokens": 14015,
+      "cacheCreationTokens": 352234,
+      "cacheReadTokens": 6546648,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-23",
+      "model": "gpt-5.5",
+      "inputTokens": 3519,
+      "outputTokens": 11328,
+      "cacheCreationTokens": 270661,
+      "cacheReadTokens": 1677591,
+      "reasoningTokens": 23005
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-23",
+      "model": "gpt-5.4",
+      "inputTokens": 288,
+      "outputTokens": 13594,
+      "cacheCreationTokens": 310866,
+      "cacheReadTokens": 854964,
+      "reasoningTokens": 6162
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-24",
+      "model": "claude-opus-4-8",
+      "inputTokens": 3211,
+      "outputTokens": 8393,
+      "cacheCreationTokens": 401771,
+      "cacheReadTokens": 9662839,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-24",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 1473,
+      "outputTokens": 1227,
+      "cacheCreationTokens": 225010,
+      "cacheReadTokens": 10846437,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-24",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 1959,
+      "outputTokens": 25049,
+      "cacheCreationTokens": 222805,
+      "cacheReadTokens": 6897249,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-24",
+      "model": "claude-fable-5",
+      "inputTokens": 3717,
+      "outputTokens": 11233,
+      "cacheCreationTokens": 225291,
+      "cacheReadTokens": 254166,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-24",
+      "model": "gpt-5.5",
+      "inputTokens": 3890,
+      "outputTokens": 13243,
+      "cacheCreationTokens": 461457,
+      "cacheReadTokens": 8792984,
+      "reasoningTokens": 19923
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-24",
+      "model": "gpt-5.4",
+      "inputTokens": 366,
+      "outputTokens": 11562,
+      "cacheCreationTokens": 368004,
+      "cacheReadTokens": 2100774,
+      "reasoningTokens": 28326
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-05-24",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 3309,
+      "outputTokens": 2486,
+      "cacheCreationTokens": 267300,
+      "cacheReadTokens": 10224615,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-25",
+      "model": "claude-opus-4-8",
+      "inputTokens": 1919,
+      "outputTokens": 22094,
+      "cacheCreationTokens": 573620,
+      "cacheReadTokens": 11021794,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-25",
+      "model": "claude-fable-5",
+      "inputTokens": 3472,
+      "outputTokens": 27607,
+      "cacheCreationTokens": 353549,
+      "cacheReadTokens": 10086459,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-25",
+      "model": "gpt-5.4",
+      "inputTokens": 3869,
+      "outputTokens": 6099,
+      "cacheCreationTokens": 118694,
+      "cacheReadTokens": 3055165,
+      "reasoningTokens": 5889
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-26",
+      "model": "claude-opus-4-8",
+      "inputTokens": 2053,
+      "outputTokens": 14634,
+      "cacheCreationTokens": 9797,
+      "cacheReadTokens": 6339876,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-26",
+      "model": "gpt-5.4",
+      "inputTokens": 2089,
+      "outputTokens": 8439,
+      "cacheCreationTokens": 81148,
+      "cacheReadTokens": 10827393,
+      "reasoningTokens": 28383
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-05-26",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 1769,
+      "outputTokens": 17544,
+      "cacheCreationTokens": 348693,
+      "cacheReadTokens": 4640002,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-27",
+      "model": "claude-opus-4-8",
+      "inputTokens": 2038,
+      "outputTokens": 12522,
+      "cacheCreationTokens": 104503,
+      "cacheReadTokens": 11129060,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-27",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 3326,
+      "outputTokens": 21578,
+      "cacheCreationTokens": 169308,
+      "cacheReadTokens": 3070684,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-27",
+      "model": "claude-fable-5",
+      "inputTokens": 3471,
+      "outputTokens": 28114,
+      "cacheCreationTokens": 211512,
+      "cacheReadTokens": 786128,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-27",
+      "model": "gpt-5.5",
+      "inputTokens": 1448,
+      "outputTokens": 26663,
+      "cacheCreationTokens": 121171,
+      "cacheReadTokens": 2212948,
+      "reasoningTokens": 2992
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-28",
+      "model": "claude-opus-4-8",
+      "inputTokens": 791,
+      "outputTokens": 12465,
+      "cacheCreationTokens": 391774,
+      "cacheReadTokens": 6840202,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-28",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 900,
+      "outputTokens": 11347,
+      "cacheCreationTokens": 430807,
+      "cacheReadTokens": 10449873,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-28",
+      "model": "claude-fable-5",
+      "inputTokens": 474,
+      "outputTokens": 20087,
+      "cacheCreationTokens": 75822,
+      "cacheReadTokens": 7847772,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-28",
+      "model": "gpt-5.5",
+      "inputTokens": 80,
+      "outputTokens": 14950,
+      "cacheCreationTokens": 191381,
+      "cacheReadTokens": 6032576,
+      "reasoningTokens": 24309
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-28",
+      "model": "gpt-5.4",
+      "inputTokens": 2099,
+      "outputTokens": 13161,
+      "cacheCreationTokens": 565941,
+      "cacheReadTokens": 7332319,
+      "reasoningTokens": 4987
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-05-28",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 791,
+      "outputTokens": 20769,
+      "cacheCreationTokens": 555556,
+      "cacheReadTokens": 5061458,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-29",
+      "model": "claude-opus-4-8",
+      "inputTokens": 858,
+      "outputTokens": 9333,
+      "cacheCreationTokens": 56674,
+      "cacheReadTokens": 4058655,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-29",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 1241,
+      "outputTokens": 11181,
+      "cacheCreationTokens": 98672,
+      "cacheReadTokens": 1162079,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-29",
+      "model": "gpt-5.5",
+      "inputTokens": 1578,
+      "outputTokens": 28626,
+      "cacheCreationTokens": 263937,
+      "cacheReadTokens": 9857773,
+      "reasoningTokens": 15951
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-30",
+      "model": "claude-opus-4-8",
+      "inputTokens": 447,
+      "outputTokens": 4616,
+      "cacheCreationTokens": 126611,
+      "cacheReadTokens": 4360257,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-30",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2461,
+      "outputTokens": 21828,
+      "cacheCreationTokens": 282318,
+      "cacheReadTokens": 10160686,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-30",
+      "model": "claude-fable-5",
+      "inputTokens": 377,
+      "outputTokens": 21243,
+      "cacheCreationTokens": 518870,
+      "cacheReadTokens": 3206191,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-31",
+      "model": "claude-opus-4-8",
+      "inputTokens": 1646,
+      "outputTokens": 20729,
+      "cacheCreationTokens": 534246,
+      "cacheReadTokens": 8579243,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-31",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 3044,
+      "outputTokens": 15203,
+      "cacheCreationTokens": 152365,
+      "cacheReadTokens": 4003891,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-05-31",
+      "model": "claude-fable-5",
+      "inputTokens": 564,
+      "outputTokens": 1315,
+      "cacheCreationTokens": 109459,
+      "cacheReadTokens": 11004071,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-05-31",
+      "model": "gpt-5.5",
+      "inputTokens": 3224,
+      "outputTokens": 17259,
+      "cacheCreationTokens": 551694,
+      "cacheReadTokens": 8341009,
+      "reasoningTokens": 38601
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-05-31",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 1344,
+      "outputTokens": 15298,
+      "cacheCreationTokens": 92620,
+      "cacheReadTokens": 4592878,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-01",
+      "model": "claude-opus-4-8",
+      "inputTokens": 1779,
+      "outputTokens": 8826,
+      "cacheCreationTokens": 268578,
+      "cacheReadTokens": 3567761,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-01",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 3286,
+      "outputTokens": 25816,
+      "cacheCreationTokens": 19226,
+      "cacheReadTokens": 2071121,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-01",
+      "model": "gpt-5.5",
+      "inputTokens": 820,
+      "outputTokens": 15048,
+      "cacheCreationTokens": 174752,
+      "cacheReadTokens": 4147061,
+      "reasoningTokens": 29400
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-01",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2176,
+      "outputTokens": 29554,
+      "cacheCreationTokens": 364581,
+      "cacheReadTokens": 5107737,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-02",
+      "model": "claude-opus-4-8",
+      "inputTokens": 1666,
+      "outputTokens": 17780,
+      "cacheCreationTokens": 59417,
+      "cacheReadTokens": 237387,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-02",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2656,
+      "outputTokens": 15595,
+      "cacheCreationTokens": 154121,
+      "cacheReadTokens": 8962763,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-02",
+      "model": "claude-fable-5",
+      "inputTokens": 3784,
+      "outputTokens": 654,
+      "cacheCreationTokens": 508012,
+      "cacheReadTokens": 2393889,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-02",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 1967,
+      "outputTokens": 4055,
+      "cacheCreationTokens": 386840,
+      "cacheReadTokens": 4789899,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-03",
+      "model": "claude-opus-4-8",
+      "inputTokens": 427,
+      "outputTokens": 3292,
+      "cacheCreationTokens": 448257,
+      "cacheReadTokens": 9351970,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-03",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 1148,
+      "outputTokens": 15952,
+      "cacheCreationTokens": 287250,
+      "cacheReadTokens": 5452649,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-03",
+      "model": "claude-fable-5",
+      "inputTokens": 2903,
+      "outputTokens": 1929,
+      "cacheCreationTokens": 517812,
+      "cacheReadTokens": 873445,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-03",
+      "model": "gpt-5.4",
+      "inputTokens": 1992,
+      "outputTokens": 21443,
+      "cacheCreationTokens": 218882,
+      "cacheReadTokens": 6725335,
+      "reasoningTokens": 31386
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-04",
+      "model": "claude-opus-4-8",
+      "inputTokens": 1623,
+      "outputTokens": 13298,
+      "cacheCreationTokens": 560317,
+      "cacheReadTokens": 11171005,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-04",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 1895,
+      "outputTokens": 11284,
+      "cacheCreationTokens": 464331,
+      "cacheReadTokens": 1335259,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-04",
+      "model": "gpt-5.4",
+      "inputTokens": 1613,
+      "outputTokens": 19226,
+      "cacheCreationTokens": 317551,
+      "cacheReadTokens": 11693570,
+      "reasoningTokens": 8341
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-05",
+      "model": "claude-opus-4-8",
+      "inputTokens": 846,
+      "outputTokens": 22580,
+      "cacheCreationTokens": 10285,
+      "cacheReadTokens": 8061717,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-05",
+      "model": "claude-fable-5",
+      "inputTokens": 1038,
+      "outputTokens": 18000,
+      "cacheCreationTokens": 12654,
+      "cacheReadTokens": 9346548,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-05",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2932,
+      "outputTokens": 20751,
+      "cacheCreationTokens": 463239,
+      "cacheReadTokens": 8849453,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-06",
+      "model": "claude-opus-4-8",
+      "inputTokens": 2669,
+      "outputTokens": 27383,
+      "cacheCreationTokens": 545215,
+      "cacheReadTokens": 6553684,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-06",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2615,
+      "outputTokens": 25465,
+      "cacheCreationTokens": 273066,
+      "cacheReadTokens": 10141035,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-06",
+      "model": "gpt-5.4",
+      "inputTokens": 1782,
+      "outputTokens": 13848,
+      "cacheCreationTokens": 563736,
+      "cacheReadTokens": 8695106,
+      "reasoningTokens": 13471
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-06",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2913,
+      "outputTokens": 9325,
+      "cacheCreationTokens": 108829,
+      "cacheReadTokens": 11612197,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-07",
+      "model": "claude-opus-4-8",
+      "inputTokens": 3208,
+      "outputTokens": 25577,
+      "cacheCreationTokens": 14681,
+      "cacheReadTokens": 7552700,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-07",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2778,
+      "outputTokens": 24459,
+      "cacheCreationTokens": 159001,
+      "cacheReadTokens": 239198,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-07",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 2176,
+      "outputTokens": 23299,
+      "cacheCreationTokens": 500629,
+      "cacheReadTokens": 4084162,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-07",
+      "model": "gpt-5.5",
+      "inputTokens": 2096,
+      "outputTokens": 3346,
+      "cacheCreationTokens": 83252,
+      "cacheReadTokens": 5005185,
+      "reasoningTokens": 5070
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-07",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 3701,
+      "outputTokens": 7763,
+      "cacheCreationTokens": 129473,
+      "cacheReadTokens": 4177266,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-08",
+      "model": "claude-opus-4-8",
+      "inputTokens": 712,
+      "outputTokens": 4718,
+      "cacheCreationTokens": 346070,
+      "cacheReadTokens": 1216487,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-08",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 1080,
+      "outputTokens": 6080,
+      "cacheCreationTokens": 34745,
+      "cacheReadTokens": 9847801,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-08",
+      "model": "claude-fable-5",
+      "inputTokens": 4044,
+      "outputTokens": 5351,
+      "cacheCreationTokens": 275589,
+      "cacheReadTokens": 8800063,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-08",
+      "model": "gpt-5.5",
+      "inputTokens": 290,
+      "outputTokens": 11154,
+      "cacheCreationTokens": 385591,
+      "cacheReadTokens": 2255382,
+      "reasoningTokens": 8551
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-08",
+      "model": "gpt-5.4",
+      "inputTokens": 2808,
+      "outputTokens": 11156,
+      "cacheCreationTokens": 589404,
+      "cacheReadTokens": 2142977,
+      "reasoningTokens": 8831
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-09",
+      "model": "claude-opus-4-8",
+      "inputTokens": 2499,
+      "outputTokens": 29485,
+      "cacheCreationTokens": 42113,
+      "cacheReadTokens": 11640546,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-09",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 1952,
+      "outputTokens": 6215,
+      "cacheCreationTokens": 326725,
+      "cacheReadTokens": 10526232,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-09",
+      "model": "claude-fable-5",
+      "inputTokens": 2399,
+      "outputTokens": 27646,
+      "cacheCreationTokens": 338134,
+      "cacheReadTokens": 10866977,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-09",
+      "model": "gpt-5.5",
+      "inputTokens": 1855,
+      "outputTokens": 13619,
+      "cacheCreationTokens": 490507,
+      "cacheReadTokens": 10722862,
+      "reasoningTokens": 11618
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-10",
+      "model": "claude-opus-4-8",
+      "inputTokens": 563,
+      "outputTokens": 18093,
+      "cacheCreationTokens": 390298,
+      "cacheReadTokens": 2828770,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-10",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 1326,
+      "outputTokens": 28808,
+      "cacheCreationTokens": 120445,
+      "cacheReadTokens": 5709699,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-10",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 3828,
+      "outputTokens": 18774,
+      "cacheCreationTokens": 387157,
+      "cacheReadTokens": 10556938,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-10",
+      "model": "claude-fable-5",
+      "inputTokens": 3260,
+      "outputTokens": 3517,
+      "cacheCreationTokens": 429707,
+      "cacheReadTokens": 1333195,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-10",
+      "model": "gpt-5.5",
+      "inputTokens": 1576,
+      "outputTokens": 6869,
+      "cacheCreationTokens": 433405,
+      "cacheReadTokens": 10866562,
+      "reasoningTokens": 37141
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-10",
+      "model": "gpt-5.4",
+      "inputTokens": 3193,
+      "outputTokens": 4128,
+      "cacheCreationTokens": 122134,
+      "cacheReadTokens": 11679781,
+      "reasoningTokens": 33985
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-10",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 224,
+      "outputTokens": 14351,
+      "cacheCreationTokens": 416225,
+      "cacheReadTokens": 3002510,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-11",
+      "model": "claude-opus-4-8",
+      "inputTokens": 1278,
+      "outputTokens": 5543,
+      "cacheCreationTokens": 27678,
+      "cacheReadTokens": 6060716,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-11",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2704,
+      "outputTokens": 5335,
+      "cacheCreationTokens": 91623,
+      "cacheReadTokens": 8135842,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-11",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 2059,
+      "outputTokens": 24246,
+      "cacheCreationTokens": 406430,
+      "cacheReadTokens": 2728981,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-11",
+      "model": "gpt-5.4",
+      "inputTokens": 2158,
+      "outputTokens": 26993,
+      "cacheCreationTokens": 241651,
+      "cacheReadTokens": 3566804,
+      "reasoningTokens": 12150
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-12",
+      "model": "claude-opus-4-8",
+      "inputTokens": 2076,
+      "outputTokens": 1215,
+      "cacheCreationTokens": 454181,
+      "cacheReadTokens": 7918105,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-12",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 216,
+      "outputTokens": 8661,
+      "cacheCreationTokens": 406985,
+      "cacheReadTokens": 11530068,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-12",
+      "model": "gpt-5.4",
+      "inputTokens": 218,
+      "outputTokens": 28407,
+      "cacheCreationTokens": 298357,
+      "cacheReadTokens": 3510321,
+      "reasoningTokens": 4074
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-13",
+      "model": "claude-opus-4-8",
+      "inputTokens": 3382,
+      "outputTokens": 21627,
+      "cacheCreationTokens": 39539,
+      "cacheReadTokens": 4963644,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-13",
+      "model": "claude-fable-5",
+      "inputTokens": 580,
+      "outputTokens": 19322,
+      "cacheCreationTokens": 105453,
+      "cacheReadTokens": 5736373,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-13",
+      "model": "gpt-5.5",
+      "inputTokens": 3559,
+      "outputTokens": 12096,
+      "cacheCreationTokens": 62229,
+      "cacheReadTokens": 4904451,
+      "reasoningTokens": 21153
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-13",
+      "model": "gpt-5.4",
+      "inputTokens": 2117,
+      "outputTokens": 12250,
+      "cacheCreationTokens": 41811,
+      "cacheReadTokens": 830592,
+      "reasoningTokens": 28463
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-13",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2518,
+      "outputTokens": 11264,
+      "cacheCreationTokens": 218367,
+      "cacheReadTokens": 50418,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-14",
+      "model": "claude-opus-4-8",
+      "inputTokens": 520,
+      "outputTokens": 6592,
+      "cacheCreationTokens": 326383,
+      "cacheReadTokens": 1460909,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-14",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 1286,
+      "outputTokens": 26032,
+      "cacheCreationTokens": 421462,
+      "cacheReadTokens": 11869370,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-14",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 1404,
+      "outputTokens": 9927,
+      "cacheCreationTokens": 393251,
+      "cacheReadTokens": 380461,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-14",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 3480,
+      "outputTokens": 27175,
+      "cacheCreationTokens": 190517,
+      "cacheReadTokens": 1559216,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-15",
+      "model": "claude-opus-4-8",
+      "inputTokens": 2261,
+      "outputTokens": 12488,
+      "cacheCreationTokens": 89497,
+      "cacheReadTokens": 7274880,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-15",
+      "model": "gpt-5.5",
+      "inputTokens": 1040,
+      "outputTokens": 21722,
+      "cacheCreationTokens": 353517,
+      "cacheReadTokens": 11704144,
+      "reasoningTokens": 19080
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-15",
+      "model": "gpt-5.4",
+      "inputTokens": 3710,
+      "outputTokens": 17452,
+      "cacheCreationTokens": 158360,
+      "cacheReadTokens": 2015680,
+      "reasoningTokens": 21079
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-15",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 983,
+      "outputTokens": 25181,
+      "cacheCreationTokens": 257301,
+      "cacheReadTokens": 7582788,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-16",
+      "model": "claude-opus-4-8",
+      "inputTokens": 2588,
+      "outputTokens": 1298,
+      "cacheCreationTokens": 100451,
+      "cacheReadTokens": 1400190,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-16",
+      "model": "gpt-5.4",
+      "inputTokens": 3992,
+      "outputTokens": 26406,
+      "cacheCreationTokens": 474032,
+      "cacheReadTokens": 679407,
+      "reasoningTokens": 1287
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-17",
+      "model": "claude-opus-4-8",
+      "inputTokens": 2705,
+      "outputTokens": 17298,
+      "cacheCreationTokens": 591453,
+      "cacheReadTokens": 7275563,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-17",
+      "model": "claude-fable-5",
+      "inputTokens": 2277,
+      "outputTokens": 8648,
+      "cacheCreationTokens": 21282,
+      "cacheReadTokens": 6795165,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-17",
+      "model": "gpt-5.5",
+      "inputTokens": 2219,
+      "outputTokens": 8799,
+      "cacheCreationTokens": 566650,
+      "cacheReadTokens": 338260,
+      "reasoningTokens": 23235
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-17",
+      "model": "gpt-5.4",
+      "inputTokens": 205,
+      "outputTokens": 9550,
+      "cacheCreationTokens": 317180,
+      "cacheReadTokens": 2399125,
+      "reasoningTokens": 25858
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-17",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 793,
+      "outputTokens": 6658,
+      "cacheCreationTokens": 442952,
+      "cacheReadTokens": 9390750,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-18",
+      "model": "claude-opus-4-8",
+      "inputTokens": 1570,
+      "outputTokens": 6812,
+      "cacheCreationTokens": 65200,
+      "cacheReadTokens": 3193625,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-18",
+      "model": "gpt-5.4",
+      "inputTokens": 2389,
+      "outputTokens": 20970,
+      "cacheCreationTokens": 469133,
+      "cacheReadTokens": 9255191,
+      "reasoningTokens": 33731
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-18",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 3034,
+      "outputTokens": 21264,
+      "cacheCreationTokens": 358974,
+      "cacheReadTokens": 543907,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-19",
+      "model": "claude-opus-4-8",
+      "inputTokens": 2202,
+      "outputTokens": 1620,
+      "cacheCreationTokens": 114273,
+      "cacheReadTokens": 4873196,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-19",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2776,
+      "outputTokens": 29910,
+      "cacheCreationTokens": 214020,
+      "cacheReadTokens": 6496927,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-19",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 1576,
+      "outputTokens": 20334,
+      "cacheCreationTokens": 323755,
+      "cacheReadTokens": 7680627,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-20",
+      "model": "claude-opus-4-8",
+      "inputTokens": 3705,
+      "outputTokens": 3889,
+      "cacheCreationTokens": 301217,
+      "cacheReadTokens": 10063047,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-20",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 2265,
+      "outputTokens": 28078,
+      "cacheCreationTokens": 13975,
+      "cacheReadTokens": 347408,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-20",
+      "model": "claude-fable-5",
+      "inputTokens": 3808,
+      "outputTokens": 26081,
+      "cacheCreationTokens": 362232,
+      "cacheReadTokens": 11010171,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-20",
+      "model": "gpt-5.5",
+      "inputTokens": 1188,
+      "outputTokens": 26604,
+      "cacheCreationTokens": 511440,
+      "cacheReadTokens": 343461,
+      "reasoningTokens": 28880
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-20",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 3908,
+      "outputTokens": 972,
+      "cacheCreationTokens": 293473,
+      "cacheReadTokens": 4506246,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-21",
+      "model": "claude-opus-4-8",
+      "inputTokens": 3684,
+      "outputTokens": 23860,
+      "cacheCreationTokens": 409990,
+      "cacheReadTokens": 3454192,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-21",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 449,
+      "outputTokens": 27484,
+      "cacheCreationTokens": 461574,
+      "cacheReadTokens": 554915,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-21",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 3780,
+      "outputTokens": 6871,
+      "cacheCreationTokens": 432192,
+      "cacheReadTokens": 2237128,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-21",
+      "model": "gpt-5.5",
+      "inputTokens": 1164,
+      "outputTokens": 24411,
+      "cacheCreationTokens": 391444,
+      "cacheReadTokens": 8156695,
+      "reasoningTokens": 6879
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-21",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 4022,
+      "outputTokens": 24498,
+      "cacheCreationTokens": 34089,
+      "cacheReadTokens": 9518435,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-22",
+      "model": "claude-opus-4-8",
+      "inputTokens": 1787,
+      "outputTokens": 8935,
+      "cacheCreationTokens": 539584,
+      "cacheReadTokens": 4056360,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-22",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 600,
+      "outputTokens": 9232,
+      "cacheCreationTokens": 542080,
+      "cacheReadTokens": 8050653,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-22",
+      "model": "claude-fable-5",
+      "inputTokens": 326,
+      "outputTokens": 20590,
+      "cacheCreationTokens": 12584,
+      "cacheReadTokens": 6578711,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-22",
+      "model": "gpt-5.4",
+      "inputTokens": 1365,
+      "outputTokens": 22776,
+      "cacheCreationTokens": 480231,
+      "cacheReadTokens": 6557534,
+      "reasoningTokens": 10713
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-22",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2343,
+      "outputTokens": 27418,
+      "cacheCreationTokens": 592742,
+      "cacheReadTokens": 3484388,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-23",
+      "model": "claude-opus-4-8",
+      "inputTokens": 424,
+      "outputTokens": 4882,
+      "cacheCreationTokens": 297277,
+      "cacheReadTokens": 6519492,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-23",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 1372,
+      "outputTokens": 12838,
+      "cacheCreationTokens": 136060,
+      "cacheReadTokens": 6804153,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-23",
+      "model": "claude-fable-5",
+      "inputTokens": 2400,
+      "outputTokens": 4066,
+      "cacheCreationTokens": 69486,
+      "cacheReadTokens": 6618535,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-23",
+      "model": "gpt-5.4",
+      "inputTokens": 547,
+      "outputTokens": 18443,
+      "cacheCreationTokens": 125256,
+      "cacheReadTokens": 2692636,
+      "reasoningTokens": 29700
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-24",
+      "model": "claude-opus-4-8",
+      "inputTokens": 3009,
+      "outputTokens": 13803,
+      "cacheCreationTokens": 403645,
+      "cacheReadTokens": 2121162,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-24",
+      "model": "gpt-5.5",
+      "inputTokens": 1374,
+      "outputTokens": 25422,
+      "cacheCreationTokens": 464788,
+      "cacheReadTokens": 6044982,
+      "reasoningTokens": 9323
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-24",
+      "model": "gpt-5.4",
+      "inputTokens": 1934,
+      "outputTokens": 6704,
+      "cacheCreationTokens": 42595,
+      "cacheReadTokens": 5370621,
+      "reasoningTokens": 29786
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-25",
+      "model": "claude-opus-4-8",
+      "inputTokens": 2424,
+      "outputTokens": 25363,
+      "cacheCreationTokens": 484809,
+      "cacheReadTokens": 5417290,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "codex",
+      "date": "2026-06-25",
+      "model": "gpt-5.5",
+      "inputTokens": 287,
+      "outputTokens": 11481,
+      "cacheCreationTokens": 25040,
+      "cacheReadTokens": 3991336,
+      "reasoningTokens": 30380
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-26",
+      "model": "claude-opus-4-8",
+      "inputTokens": 1788,
+      "outputTokens": 1446,
+      "cacheCreationTokens": 569123,
+      "cacheReadTokens": 4822990,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-26",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 2285,
+      "outputTokens": 11180,
+      "cacheCreationTokens": 446149,
+      "cacheReadTokens": 11664184,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-27",
+      "model": "claude-opus-4-8",
+      "inputTokens": 120,
+      "outputTokens": 22726,
+      "cacheCreationTokens": 568240,
+      "cacheReadTokens": 1460115,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-27",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 145,
+      "outputTokens": 7879,
+      "cacheCreationTokens": 427968,
+      "cacheReadTokens": 5097107,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "claude",
+      "date": "2026-06-27",
+      "model": "claude-haiku-4-5-20251001",
+      "inputTokens": 1265,
+      "outputTokens": 1241,
+      "cacheCreationTokens": 127367,
+      "cacheReadTokens": 3779891,
+      "reasoningTokens": 0
+    },
+    {
+      "source": "openclaw",
+      "date": "2026-06-27",
+      "model": "claude-sonnet-4-6",
+      "inputTokens": 3773,
+      "outputTokens": 16291,
+      "cacheCreationTokens": 421573,
+      "cacheReadTokens": 3674379,
+      "reasoningTokens": 0
+    }
+  ]
+}

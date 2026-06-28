@@ -1,0 +1,33 @@
+{
+  "_note": "FROZEN, SCRUBBED 2-day slice of a real `ccusage openclaw daily --json` envelope. Keys/shape/modelName/date preserved; token/cost NUMBERS replaced with synthetic round values. Exercises the OpenClaw divergence: NO per-model token split — each day yields ONE canonical record, model = the single `modelsUsed` entry with the `[openclaw] ` prefix stripped (day 1), or `(all)` when the day spans multiple models (day 2). Decoded field-by-field by the ccusage-decoder-contract gate via the app's decodeOpenclawDaily.",
+  "daily": [
+    {
+      "cacheCreationTokens": 9000000,
+      "cacheReadTokens": 12000000,
+      "date": "2026-02-19",
+      "inputTokens": 2000,
+      "modelsUsed": ["[openclaw] claude-sonnet-4-6"],
+      "outputTokens": 70000,
+      "totalCost": 39.5,
+      "totalTokens": 21072000
+    },
+    {
+      "cacheCreationTokens": 150000,
+      "cacheReadTokens": 300000,
+      "date": "2026-05-03",
+      "inputTokens": 20,
+      "modelsUsed": ["[openclaw] claude-opus-4-6", "[openclaw] claude-sonnet-4-6"],
+      "outputTokens": 4000,
+      "totalCost": 1.0,
+      "totalTokens": 454020
+    }
+  ],
+  "totals": {
+    "cacheCreationTokens": 9150000,
+    "cacheReadTokens": 12300000,
+    "inputTokens": 2020,
+    "outputTokens": 74000,
+    "totalCost": 40.5,
+    "totalTokens": 21526020
+  }
+}

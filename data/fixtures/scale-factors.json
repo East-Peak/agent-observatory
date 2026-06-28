@@ -1,0 +1,5 @@
+{
+  "note": "FROZEN — integer scale factors k for the pipeline-coupling linearity proof. Cost = Σ tokensᵢ × rateᵢ, so rendering with the rate card scaled by k must scale every cost/rate-kind DOM value by exactly k, while ratio/percent/tokens/count/date/label values stay invariant. Asserted by tests/panels/spendOverview.coupling.test.tsx, which injects scaleRateCard(card, k) through the DataSource value seam at scope (last30, all). Integers keep the scaled rates exact base-10 integer strings (no float).",
+  "expectation": "value(k · card) = k · value for value-kind in {cost, rate}; invariant for {ratio, percent, tokens, count, date, label}",
+  "factors": [2, 3, 5, 7]
+}

@@ -1,0 +1,61 @@
+{
+  "_note": "FROZEN, SCRUBBED 2-day slice of a real `ccusage claude daily --json` envelope. Every key/shape/modelName/date is preserved from the real capture; only the token/cost NUMBERS are replaced with synthetic round values so no real usage is committed. The ccusage-decoder-contract gate decodes this through the app's decodeClaudeDaily and checks each canonical record field-by-field against this envelope (guards PM-006 envelope drift). The float `cost`/`totalCost` are intentionally retained (the decoder discards them) — money-encoding exempts data/fixtures/decoder/**.",
+  "daily": [
+    {
+      "cacheCreationTokens": 100000,
+      "cacheReadTokens": 2000000,
+      "date": "2026-05-27",
+      "inputTokens": 1000,
+      "modelBreakdowns": [
+        {
+          "cacheCreationTokens": 100000,
+          "cacheReadTokens": 2000000,
+          "cost": 1.5,
+          "inputTokens": 1000,
+          "modelName": "claude-sonnet-4-6",
+          "outputTokens": 5000
+        }
+      ],
+      "modelsUsed": ["claude-sonnet-4-6"],
+      "outputTokens": 5000,
+      "totalCost": 1.5,
+      "totalTokens": 2106000
+    },
+    {
+      "cacheCreationTokens": 700000,
+      "cacheReadTokens": 9000000,
+      "date": "2026-05-28",
+      "inputTokens": 3000,
+      "modelBreakdowns": [
+        {
+          "cacheCreationTokens": 400000,
+          "cacheReadTokens": 6000000,
+          "cost": 10.0,
+          "inputTokens": 2000,
+          "modelName": "claude-opus-4-7",
+          "outputTokens": 80000
+        },
+        {
+          "cacheCreationTokens": 300000,
+          "cacheReadTokens": 3000000,
+          "cost": 4.0,
+          "inputTokens": 1000,
+          "modelName": "claude-sonnet-4-6",
+          "outputTokens": 20000
+        }
+      ],
+      "modelsUsed": ["claude-sonnet-4-6", "claude-opus-4-7"],
+      "outputTokens": 100000,
+      "totalCost": 14.0,
+      "totalTokens": 9803000
+    }
+  ],
+  "totals": {
+    "cacheCreationTokens": 800000,
+    "cacheReadTokens": 11000000,
+    "inputTokens": 4000,
+    "outputTokens": 105000,
+    "totalCost": 15.5,
+    "totalTokens": 11909000
+  }
+}

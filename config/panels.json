@@ -1,0 +1,10 @@
+{
+  "note": "Live/non-live registry for Observatory panels. The autonomous /goal loop EDITS this file (it is NOT frozen) to promote a panel to \"live\" — but only after that panel's *.demo.test.tsx (calling describeLivePanel) plus the panel-golden + pipeline-coupling gates pass. ZERO panels are live at the verifier baseline (Codex r6#3), so every panel gate passes vacuously here. verify:complete additionally requires all four required panels live.",
+  "required": ["spendOverview", "bySourceModel", "cacheEfficiency", "activityFeed"],
+  "panels": {
+    "spendOverview": { "status": "live", "dir": "spend-overview", "route": "/" },
+    "bySourceModel": { "status": "non-live", "dir": "by-source-model", "route": "/by-source-model" },
+    "cacheEfficiency": { "status": "non-live", "dir": "cache-efficiency", "route": "/cache-efficiency" },
+    "activityFeed": { "status": "non-live", "dir": "activity-feed", "route": "/activity-feed" }
+  }
+}
