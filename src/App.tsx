@@ -4,6 +4,7 @@ import { DataSourceProvider } from '@/data/DataSourceContext';
 import type { DataSource } from '@/data/DataSource';
 import { ScopeProvider, type Scope } from '@/app/ScopeProvider';
 import { SpendOverviewPanel } from '@/panels/spend-overview/SpendOverviewPanel';
+import { CacheEfficiencyPanel } from '@/panels/cache-efficiency/CacheEfficiencyPanel';
 
 /**
  * The live panels wired into the shell. Promoting a panel to `live` adds its row here AND a
@@ -12,13 +13,17 @@ import { SpendOverviewPanel } from '@/panels/spend-overview/SpendOverviewPanel';
  * the REAL `<AppShell>` route table to that path, so a mis-wired or unreachable route FAILs the
  * oracle (it finds no panel / no nav link).
  */
-const NAV = [{ to: '/', label: 'Spend Overview' }] as const;
+const NAV = [
+  { to: '/', label: 'Spend Overview' },
+  { to: '/cache-efficiency', label: 'Cache Efficiency' },
+] as const;
 
 /** The REAL route table (router-agnostic). Shared by production `<App>` and the frozen oracle. */
 export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<SpendOverviewPanel />} />
+      <Route path="/cache-efficiency" element={<CacheEfficiencyPanel />} />
     </Routes>
   );
 }
