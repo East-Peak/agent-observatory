@@ -1,0 +1,477 @@
+/* ============================================================================
+   Agent Observatory — visual system
+   Bloomberg-terminal-meets-modern-observability. Deep charcoal, restrained palette,
+   per-source colour coding, tabular monospace numerals, high data-ink, minimal chrome.
+   ========================================================================= */
+
+:root {
+  /* surfaces — deep charcoal, layered */
+  --bg: #0a0c10;
+  --surface-0: #0e1117;
+  --surface-1: #141925;
+  --surface-2: #1b212f;
+  --line: #232b3b;
+  --line-strong: #313b4f;
+
+  /* text */
+  --text: #e7ebf2;
+  --text-dim: #9aa4b8;
+  --text-faint: #5e6878;
+
+  /* per-source colour coding */
+  --src-claude: #e8a13c; /* warm amber */
+  --src-codex: #5ea0ef; /* cool blue */
+  --src-openclaw: #4cc38a; /* green */
+
+  /* semantic */
+  --accent-spend: #e8a13c;
+  --up: #f2555a; /* spend rising = red */
+  --down: #4cc38a; /* spend falling = green */
+  --flat: #9aa4b8;
+
+  /* type */
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(232, 161, 60, 0.06), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(94, 160, 239, 0.05), transparent 55%), var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1, 'cv01' 1;
+}
+
+/* numerals everywhere read tabular + monospace */
+.metric__value,
+.deltachip,
+.panel__provenance,
+.panel__chart-axis,
+.app__tag {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- app shell ---------------------------------------------------------- */
+
+.app {
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.app__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--surface-0), rgba(14, 17, 23, 0.6));
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  backdrop-filter: blur(8px);
+}
+
+.app__brand {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.app__mark {
+  align-self: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: conic-gradient(from 210deg, var(--src-claude), var(--src-codex), var(--src-openclaw), var(--src-claude));
+  box-shadow: 0 0 16px rgba(232, 161, 60, 0.4);
+}
+
+.app__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.app__tag {
+  color: var(--text-faint);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app__nav {
+  display: flex;
+  gap: 4px;
+}
+
+.app__navlink {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+
+.app__navlink:hover {
+  color: var(--text);
+  background: var(--surface-1);
+}
+
+.app__navlink--active {
+  color: var(--text);
+  background: var(--surface-1);
+  border-color: var(--line-strong);
+}
+
+.app__main {
+  padding: 24px;
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.app__foot {
+  padding: 12px 24px;
+  border-top: 1px solid var(--line);
+  color: var(--text-faint);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+/* ---- panel -------------------------------------------------------------- */
+
+.panel {
+  background: linear-gradient(180deg, var(--surface-0), var(--surface-0));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 22px 22px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02) inset, 0 24px 48px -32px rgba(0, 0, 0, 0.8);
+}
+
+.panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panel__eyebrow {
+  margin: 0 0 4px;
+  color: var(--accent-spend);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 680;
+  letter-spacing: -0.01em;
+}
+
+.panel__provenance {
+  margin: 6px 0 0;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.sourcelegend {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sourcelegend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+
+.source-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  box-shadow: 0 0 8px currentColor;
+}
+
+.source-dot[data-source='claude'] {
+  background: var(--src-claude);
+  color: var(--src-claude);
+}
+.source-dot[data-source='codex'] {
+  background: var(--src-codex);
+  color: var(--src-codex);
+}
+.source-dot[data-source='openclaw'] {
+  background: var(--src-openclaw);
+  color: var(--src-openclaw);
+}
+.source-dot[data-source='all'] {
+  background: linear-gradient(90deg, var(--src-claude), var(--src-codex), var(--src-openclaw));
+  color: transparent;
+}
+
+/* ---- scope bar ---------------------------------------------------------- */
+
+.scopebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin: 18px 0 22px;
+  padding: 12px 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.scopebar__group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.scopebar__label {
+  color: var(--text-faint);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.segmented {
+  display: inline-flex;
+  background: var(--surface-0);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.segmented__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.segmented__option:hover {
+  color: var(--text);
+}
+
+.segmented__option[aria-current='true'] {
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--line-strong);
+}
+
+.segmented__option .source-dot {
+  width: 7px;
+  height: 7px;
+}
+
+/* ---- metrics row -------------------------------------------------------- */
+
+.panel__metrics {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) auto 1fr 1fr;
+  align-items: stretch;
+  gap: 14px;
+  padding: 4px 0 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.metric__label {
+  color: var(--text-faint);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.metric__value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+
+.metric--sm .metric__value {
+  font-size: 22px;
+}
+
+.metric--lg .metric__value {
+  font-size: 40px;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+/* delta chip */
+.deltachip {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 10px;
+  align-self: center;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+}
+
+.deltachip__arrow {
+  grid-row: 1 / span 2;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.deltachip__body {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.deltachip__amount {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.deltachip__pct {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.deltachip__caption {
+  grid-column: 2;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.deltachip--up {
+  color: var(--up);
+  border-color: rgba(242, 85, 90, 0.35);
+  background: rgba(242, 85, 90, 0.07);
+}
+.deltachip--down {
+  color: var(--down);
+  border-color: rgba(76, 195, 138, 0.35);
+  background: rgba(76, 195, 138, 0.07);
+}
+.deltachip--flat {
+  color: var(--flat);
+}
+.deltachip__caption {
+  color: var(--text-faint);
+}
+
+/* ---- chart -------------------------------------------------------------- */
+
+.panel__chart {
+  padding-top: 18px;
+}
+
+.panel__chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.panel__chart-title {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.panel__chart-scope {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.sparkline {
+  display: block;
+  width: 100%;
+  height: 140px;
+  overflow: visible;
+}
+
+.sparkline__line {
+  stroke-width: 1.75;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 6px rgba(232, 161, 60, 0.5));
+}
+
+.sparkline__dot {
+  fill: var(--text-faint);
+  opacity: 0.55;
+}
+
+.sparkline__dot--last {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px var(--accent-spend));
+}
+
+.panel__chart-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .panel__metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+  .panel__head {
+    flex-direction: column;
+  }
+}
