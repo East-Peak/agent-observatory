@@ -1,5 +1,5 @@
 {
-  "note": "FROZEN contract for the PURE resolveProject(encodedDir, {knownRoots, aliases}). The Claude `~/.claude/projects/<encoded-cwd>` dir name maps every `/` and `.` to `-` and preserves literal hyphens, so it is NOT reversible (a sibling repo `yard-ops-extra` and a nested dir `yard-ops/extra` encode identically). Resolution is therefore a forward, segment-boundary longest-prefix match: encode each knownRoot the same way; an instance dir matches a root if it equals it or continues it at a `-` boundary; the longest match wins; 0 matches -> __unattributed__ (fail closed). `aliases` map a worktree/old-name absolute path to its canonical git-toplevel root. Pins LABEL correctness (which token reconciliation cannot). Cases authored 2026-06-29 (Phase 0-B); encodings verified against the real ~/.claude/projects scheme.",
+  "note": "FROZEN contract for the PURE resolveProject(encodedDir, {knownRoots, aliases}). The Claude `~/.claude/projects/<encoded-cwd>` dir name is Claude Code's cwd sanitizer (binary v2.1.195): every character outside [A-Za-z0-9_-] becomes `-` (so `/`, `.`, space, `@`, etc. all collapse to `-`), while underscore and hyphen are preserved. It is therefore NOT reversible (sibling repo `yard-ops-extra` and nested dir `yard-ops/extra` encode identically; `/a-b`, `/a.b` both -> `-a-b`). Resolution is a forward, segment-boundary longest-prefix match: encode each knownRoot the same way (trailing slashes stripped); a cwd matches a root if it equals it or continues it at a `-` boundary; the longest match wins; two DISTINCT roots colliding at the longest length -> __unattributed__ (refuse to guess); 0 matches -> __unattributed__ (fail closed). `aliases` map a worktree/old-name absolute path to a canonical, KNOWN, non-sentinel root; a stray alias is ignored. ACCEPTED LIMITATION: an undiscovered sibling like `yard-ops-extra` attributes to the enclosing `yard-ops` (indistinguishable from a nested cwd) — mitigated by passing the complete discovered git-root set + the report-only Unattributed share. Pins LABEL correctness (which token reconciliation cannot). Cases authored 2026-06-29 (Phase 0-B); encoding verified against the installed Claude Code sanitizer.",
   "cases": [
     {
       "name": "exact root cwd -> that repo",
@@ -79,6 +79,61 @@
         "/Users/dev/projects/yard-ops"
       ],
       "aliases": {},
+      "expected": { "kind": "unattributed", "key": "__unattributed__", "label": "Unattributed" }
+    },
+    {
+      "name": "encoding: a space in the root path is sanitized to a dash (matches Claude's sanitizer)",
+      "encodedDir": "-Users-dev-My-Projects-yard-ops",
+      "knownRoots": [
+        "/Users/dev/My Projects/yard-ops"
+      ],
+      "aliases": {},
+      "expected": { "kind": "repo", "key": "/Users/dev/My Projects/yard-ops", "label": "yard-ops" }
+    },
+    {
+      "name": "encoding: an underscore in the repo name is PRESERVED (not sanitized)",
+      "encodedDir": "-Users-dev-projects-data_pipeline-src",
+      "knownRoots": [
+        "/Users/dev/projects/data_pipeline"
+      ],
+      "aliases": {},
+      "expected": { "kind": "repo", "key": "/Users/dev/projects/data_pipeline", "label": "data_pipeline" }
+    },
+    {
+      "name": "lossy collision: two distinct roots encode identically and both match -> __unattributed__ (refuse to guess)",
+      "encodedDir": "-Users-dev-projects-a-b",
+      "knownRoots": [
+        "/Users/dev/projects/a-b",
+        "/Users/dev/projects/a.b"
+      ],
+      "aliases": {},
+      "expected": { "kind": "unattributed", "key": "__unattributed__", "label": "Unattributed" }
+    },
+    {
+      "name": "accepted ambiguity: an undiscovered sibling yard-ops-extra (only yard-ops known) attributes to the enclosing yard-ops",
+      "encodedDir": "-Users-dev-projects-yard-ops-extra",
+      "knownRoots": [
+        "/Users/dev/projects/yard-ops"
+      ],
+      "aliases": {},
+      "expected": { "kind": "repo", "key": "/Users/dev/projects/yard-ops", "label": "yard-ops" }
+    },
+    {
+      "name": "normalization: a root supplied with a trailing slash still matches",
+      "encodedDir": "-Users-dev-projects-yard-ops",
+      "knownRoots": [
+        "/Users/dev/projects/yard-ops/"
+      ],
+      "aliases": {},
+      "expected": { "kind": "repo", "key": "/Users/dev/projects/yard-ops", "label": "yard-ops" }
+    },
+    {
+      "name": "alias guard: an alias whose target is a reserved sentinel is ignored -> __unattributed__",
+      "encodedDir": "-Users-dev-wt-stray",
+      "knownRoots": [
+        "/Users/dev/projects/yard-ops"
+      ],
+      "aliases": { "/Users/dev/wt/stray": "__codex__" },
       "expected": { "kind": "unattributed", "key": "__unattributed__", "label": "Unattributed" }
     }
   ]

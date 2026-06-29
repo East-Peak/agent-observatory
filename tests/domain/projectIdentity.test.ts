@@ -11,19 +11,41 @@ interface AttributionCase {
 }
 
 describe('encodeClaudeDir', () => {
-  it('maps every "/" and "." to "-" and preserves literal hyphens (the irreversible Claude scheme)', () => {
-    // Verified against the real ~/.claude/projects dir names on this machine.
+  it('sanitizes every char outside [A-Za-z0-9_-] to "-", preserving underscore and hyphen', () => {
+    // Matches Claude Code's installed cwd sanitizer (binary v2.1.195): [^A-Za-z0-9_-] -> "-".
     expect(encodeClaudeDir('/Users/dev/projects/yard-ops')).toBe('-Users-dev-projects-yard-ops');
-    expect(encodeClaudeDir('/Users/dev/.openclaw/workspace')).toBe('-Users-dev--openclaw-workspace');
+    expect(encodeClaudeDir('/Users/dev/.openclaw/workspace')).toBe('-Users-dev--openclaw-workspace'); // "." -> "-"
+    expect(encodeClaudeDir('/Users/dev/My Projects/app')).toBe('-Users-dev-My-Projects-app'); // space -> "-"
+    expect(encodeClaudeDir('/Users/dev/projects/data_pipeline')).toBe('-Users-dev-projects-data_pipeline'); // "_" kept
+    expect(encodeClaudeDir('/Users/dev/projects/scope@v2')).toBe('-Users-dev-projects-scope-v2'); // "@" -> "-"
     expect(encodeClaudeDir('/Users/dev/projects/family-tree-toolkit')).toBe('-Users-dev-projects-family-tree-toolkit');
+  });
+
+  it('strips a trailing slash so /a/b and /a/b/ encode identically', () => {
+    expect(encodeClaudeDir('/Users/dev/projects/yard-ops/')).toBe(encodeClaudeDir('/Users/dev/projects/yard-ops'));
   });
 });
 
 describe('resolveProject — frozen attribution contract', () => {
   const cases = (attribution as { cases: AttributionCase[] }).cases;
 
-  it('covers the required case shapes', () => {
-    expect(cases.length).toBeGreaterThanOrEqual(5);
+  it('pins the load-bearing case shapes (the contract cannot be gutted to happy-path-only)', () => {
+    const names = cases.map((c) => c.name).join(' | ');
+    for (const required of [
+      'exact root',
+      'nested cwd under a repo',
+      'a run IN yard-ops-extra resolves to yard-ops-extra',
+      'alias hit',
+      'unresolvable',
+      'underscore in the repo name is PRESERVED',
+      'two distinct roots encode identically',
+      'undiscovered sibling',
+      'trailing slash',
+      'alias whose target is a reserved sentinel is ignored',
+    ]) {
+      expect(names, `missing contract case: ${required}`).toContain(required);
+    }
+    expect(new Set(cases.map((c) => c.name)).size).toBe(cases.length); // no duplicate case names
   });
 
   it.each(cases.map((c) => [c.name, c] as const))('resolves: %s', (_name, c) => {
