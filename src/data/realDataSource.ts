@@ -2,13 +2,20 @@ import type { Snapshot } from '@/domain/types';
 import type { DataSource } from './DataSource';
 import { createFixturesDataSource, baseRateCard } from './FixturesDataSource';
 
-/** Minimal shape guard for an externally-produced snapshot (the ingested JSON could be hand-edited
- * or stale). Ingest already validates before writing; this just keeps a malformed artifact from
- * reaching the renderer — it falls back to fixtures instead. */
+/** Minimal shape guard for an externally-produced snapshot (the ingested JSON could be hand-edited,
+ * stale, or a leftover v1 artifact). Ingest already validates before writing; this just keeps a
+ * malformed artifact from reaching the renderer — it falls back to fixtures instead. Requires the v2
+ * project schema (a `projects` registry + a non-empty `project` on every record), so a stale v1-format
+ * snapshot is rejected rather than rendered with undefined attribution. */
 function isSnapshotShape(value: unknown): value is Snapshot {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
-  return typeof v.asOf === 'string' && Array.isArray(v.records);
+  if (typeof v.asOf !== 'string' || !Array.isArray(v.records)) return false;
+  if (typeof v.projects !== 'object' || v.projects === null) return false;
+  return v.records.every((r) => {
+    const project = (r as { project?: unknown }).project;
+    return typeof project === 'string' && project.length > 0;
+  });
 }
 
 /**

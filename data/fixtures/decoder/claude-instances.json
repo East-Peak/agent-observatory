@@ -1,126 +1,57 @@
 {
-  "_note": "SCRUBBED ccusage 20.0.14 `claude daily --instances --json` envelope for the decoder contract. Synthetic encoded dirs + plausible tokens (no real paths). Exercises: a repo, a NESTED cwd under that repo that must MERGE into it, a second repo, and an undiscovered cwd that resolves to __unattributed__. Float `cost` is intentionally present and intentionally DISCARDED (cost is re-derived from tokens via the rate card).",
+  "_note": "SCRUBBED ccusage 20.0.14 `claude daily --instances --json` envelope. Synthetic encoded dirs + no real paths. It is an EXACT per-project decomposition of claude-daily.json: summing every (day, model) across projects recovers the daily totals, so the offline ingest's claude-instances-reconciliation passes. Exercises: a repo (yard-ops), a NESTED cwd under it that MERGES (yard-ops/src), a second repo (marin-civic-graph), and an undiscovered cwd that resolves to __unattributed__ (Downloads/scratch). Float `cost` is present and intentionally DISCARDED (re-derived from tokens).",
   "projects": {
     "-Users-dev-projects-yard-ops": [
       {
-        "date": "2026-06-01",
+        "date": "2026-05-27",
         "project": "-Users-dev-projects-yard-ops",
-        "inputTokens": 10,
-        "outputTokens": 20,
-        "cacheCreationTokens": 0,
-        "cacheReadTokens": 0,
-        "totalCost": 0.1,
-        "totalTokens": 30,
-        "modelsUsed": ["claude-opus-4-8"],
         "modelBreakdowns": [
-          {
-            "modelName": "claude-opus-4-8",
-            "inputTokens": 10,
-            "outputTokens": 20,
-            "cacheCreationTokens": 0,
-            "cacheReadTokens": 0,
-            "cost": 0.1
-          }
+          { "modelName": "claude-sonnet-4-6", "inputTokens": 600, "outputTokens": 3000, "cacheCreationTokens": 60000, "cacheReadTokens": 1200000, "cost": 9.3 }
         ]
       },
       {
-        "date": "2026-06-02",
+        "date": "2026-05-28",
         "project": "-Users-dev-projects-yard-ops",
-        "inputTokens": 5,
-        "outputTokens": 5,
-        "cacheCreationTokens": 0,
-        "cacheReadTokens": 0,
-        "totalCost": 0.05,
-        "totalTokens": 10,
-        "modelsUsed": ["claude-opus-4-8"],
         "modelBreakdowns": [
-          {
-            "modelName": "claude-opus-4-8",
-            "inputTokens": 5,
-            "outputTokens": 5,
-            "cacheCreationTokens": 0,
-            "cacheReadTokens": 0,
-            "cost": 0.05
-          }
+          { "modelName": "claude-opus-4-7", "inputTokens": 1500, "outputTokens": 60000, "cacheCreationTokens": 300000, "cacheReadTokens": 4500000, "cost": 11.6 },
+          { "modelName": "claude-sonnet-4-6", "inputTokens": 1000, "outputTokens": 20000, "cacheCreationTokens": 300000, "cacheReadTokens": 3000000, "cost": 4.2 }
         ]
       }
     ],
     "-Users-dev-projects-yard-ops-src": [
       {
-        "date": "2026-06-01",
+        "date": "2026-05-27",
         "project": "-Users-dev-projects-yard-ops-src",
-        "inputTokens": 100,
-        "outputTokens": 200,
-        "cacheCreationTokens": 0,
-        "cacheReadTokens": 0,
-        "totalCost": 1.0,
-        "totalTokens": 300,
-        "modelsUsed": ["claude-opus-4-8"],
         "modelBreakdowns": [
-          {
-            "modelName": "claude-opus-4-8",
-            "inputTokens": 100,
-            "outputTokens": 200,
-            "cacheCreationTokens": 0,
-            "cacheReadTokens": 0,
-            "cost": 1.0
-          }
+          { "modelName": "claude-sonnet-4-6", "inputTokens": 200, "outputTokens": 1000, "cacheCreationTokens": 20000, "cacheReadTokens": 400000, "cost": 3.1 }
         ]
       }
     ],
     "-Users-dev-projects-marin-civic-graph": [
       {
-        "date": "2026-06-01",
+        "date": "2026-05-27",
         "project": "-Users-dev-projects-marin-civic-graph",
-        "inputTokens": 1,
-        "outputTokens": 2,
-        "cacheCreationTokens": 3,
-        "cacheReadTokens": 4,
-        "totalCost": 0.2,
-        "totalTokens": 10,
-        "modelsUsed": ["claude-sonnet-4-6"],
         "modelBreakdowns": [
-          {
-            "modelName": "claude-sonnet-4-6",
-            "inputTokens": 1,
-            "outputTokens": 2,
-            "cacheCreationTokens": 3,
-            "cacheReadTokens": 4,
-            "cost": 0.2
-          }
+          { "modelName": "claude-sonnet-4-6", "inputTokens": 200, "outputTokens": 1000, "cacheCreationTokens": 20000, "cacheReadTokens": 400000, "cost": 3.1 }
         ]
       }
     ],
     "-Users-dev-Downloads-scratch": [
       {
-        "date": "2026-06-02",
+        "date": "2026-05-28",
         "project": "-Users-dev-Downloads-scratch",
-        "inputTokens": 7,
-        "outputTokens": 8,
-        "cacheCreationTokens": 0,
-        "cacheReadTokens": 0,
-        "totalCost": 0.07,
-        "totalTokens": 15,
-        "modelsUsed": ["claude-opus-4-8"],
         "modelBreakdowns": [
-          {
-            "modelName": "claude-opus-4-8",
-            "inputTokens": 7,
-            "outputTokens": 8,
-            "cacheCreationTokens": 0,
-            "cacheReadTokens": 0,
-            "cost": 0.07
-          }
+          { "modelName": "claude-opus-4-7", "inputTokens": 500, "outputTokens": 20000, "cacheCreationTokens": 100000, "cacheReadTokens": 1500000, "cost": 3.9 }
         ]
       }
     ]
   },
   "totals": {
-    "inputTokens": 123,
-    "outputTokens": 235,
-    "cacheCreationTokens": 3,
-    "cacheReadTokens": 4,
-    "totalCost": 1.42,
-    "totalTokens": 365
+    "inputTokens": 4000,
+    "outputTokens": 105000,
+    "cacheCreationTokens": 800000,
+    "cacheReadTokens": 11000000,
+    "totalCost": 35.2,
+    "totalTokens": 11909000
   }
 }

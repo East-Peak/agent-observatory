@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { decodeClaudeInstances, CcusageDecodeError } from '@/domain/decode';
+import { decodeClaudeInstances, decodeClaudeDaily, CcusageDecodeError } from '@/domain/decode';
+import { reconcileInstancesDaily } from '@/domain/buildSnapshot';
 import { resolveProject } from '@/domain/projectIdentity';
 import { UNATTRIBUTED } from '@/domain/projects';
 import instancesEnv from '../../data/fixtures/decoder/claude-instances.json';
+import dailyEnv from '../../data/fixtures/decoder/claude-daily.json';
 
 // The roots the synthetic fixture's encoded dirs forward-match against (yard-ops-src is NESTED under
 // yard-ops; Downloads/scratch is under no root -> __unattributed__).
@@ -14,47 +16,58 @@ describe('decodeClaudeInstances', () => {
     expect(decodeClaudeInstances(instancesEnv, resolveFn)).toEqual([
       {
         source: 'claude',
-        date: '2026-06-01',
+        date: '2026-05-27',
         project: '/Users/dev/projects/marin-civic-graph',
         model: 'claude-sonnet-4-6',
-        inputTokens: 1,
-        outputTokens: 2,
-        cacheCreationTokens: 3,
-        cacheReadTokens: 4,
+        inputTokens: 200,
+        outputTokens: 1000,
+        cacheCreationTokens: 20000,
+        cacheReadTokens: 400000,
         reasoningTokens: 0,
       },
       {
-        // yard-ops (10/20) + nested yard-ops/src (100/200) on the same day+model -> one merged record.
+        // yard-ops (600/3000/60000/1.2M) + nested yard-ops/src (200/1000/20000/400k), same day+model -> merged.
         source: 'claude',
-        date: '2026-06-01',
+        date: '2026-05-27',
         project: '/Users/dev/projects/yard-ops',
-        model: 'claude-opus-4-8',
-        inputTokens: 110,
-        outputTokens: 220,
-        cacheCreationTokens: 0,
-        cacheReadTokens: 0,
+        model: 'claude-sonnet-4-6',
+        inputTokens: 800,
+        outputTokens: 4000,
+        cacheCreationTokens: 80000,
+        cacheReadTokens: 1600000,
         reasoningTokens: 0,
       },
       {
         source: 'claude',
-        date: '2026-06-02',
+        date: '2026-05-28',
         project: '/Users/dev/projects/yard-ops',
-        model: 'claude-opus-4-8',
-        inputTokens: 5,
-        outputTokens: 5,
-        cacheCreationTokens: 0,
-        cacheReadTokens: 0,
+        model: 'claude-opus-4-7',
+        inputTokens: 1500,
+        outputTokens: 60000,
+        cacheCreationTokens: 300000,
+        cacheReadTokens: 4500000,
         reasoningTokens: 0,
       },
       {
         source: 'claude',
-        date: '2026-06-02',
+        date: '2026-05-28',
+        project: '/Users/dev/projects/yard-ops',
+        model: 'claude-sonnet-4-6',
+        inputTokens: 1000,
+        outputTokens: 20000,
+        cacheCreationTokens: 300000,
+        cacheReadTokens: 3000000,
+        reasoningTokens: 0,
+      },
+      {
+        source: 'claude',
+        date: '2026-05-28',
         project: UNATTRIBUTED,
-        model: 'claude-opus-4-8',
-        inputTokens: 7,
-        outputTokens: 8,
-        cacheCreationTokens: 0,
-        cacheReadTokens: 0,
+        model: 'claude-opus-4-7',
+        inputTokens: 500,
+        outputTokens: 20000,
+        cacheCreationTokens: 100000,
+        cacheReadTokens: 1500000,
         reasoningTokens: 0,
       },
     ]);
@@ -64,6 +77,12 @@ describe('decodeClaudeInstances', () => {
     const recs = decodeClaudeInstances(instancesEnv, resolveFn);
     const keys = recs.map((r) => `${r.date}|${r.project}|${r.model}`);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('the committed instances + daily fixtures reconcile (instances is daily decomposed by project)', () => {
+    const instances = decodeClaudeInstances(instancesEnv, resolveFn);
+    const daily = decodeClaudeDaily(dailyEnv);
+    expect(reconcileInstancesDaily(instances, daily)).toEqual([]);
   });
 
   it('fails closed when the envelope is missing the projects map', () => {

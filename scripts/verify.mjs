@@ -1148,8 +1148,12 @@ const FROZEN_FILES = [
   'data/fixtures/oracle-ledger.md',
   'data/fixtures/ccusage.version.json',
   'data/fixtures/decoder/claude-daily.json',
+  'data/fixtures/decoder/claude-instances.json',
   'data/fixtures/decoder/codex-daily.json',
   'data/fixtures/decoder/openclaw-daily.json',
+  // The pure-resolver attribution contract (0-B) — frozen so the loop can't weaken the project-
+  // attribution-contract gate (0-E) by editing its expectations.
+  'data/fixtures/project-attribution.json',
   // Frozen so the loop can't edit the synthetic data + its generator together and still pass
   // byte-stability (Codex impl-review major #3).
   'data/fixtures/synthetic-snapshot.json',

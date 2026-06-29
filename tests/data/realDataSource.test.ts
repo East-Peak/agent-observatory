@@ -40,4 +40,25 @@ describe('selectDataSource', () => {
       expect(selectDataSource(bad).getSnapshot()).toEqual(fixturesDataSource.getSnapshot());
     }
   });
+
+  it('falls back to fixtures for a STALE v1-schema snapshot (no projects registry / records lacking project)', () => {
+    const recNoProject = {
+      source: 'claude',
+      date: '2026-06-29',
+      model: 'claude-opus-4-8',
+      inputTokens: 1,
+      outputTokens: 0,
+      cacheCreationTokens: 0,
+      cacheReadTokens: 0,
+      reasoningTokens: 0,
+    };
+    // v1 shape: asOf + records but NO projects registry.
+    expect(selectDataSource({ asOf: '2026-06-29', records: [recNoProject] }).getSnapshot()).toEqual(
+      fixturesDataSource.getSnapshot(),
+    );
+    // has a projects registry but a record lacks the `project` key — still rejected (would render undefined).
+    expect(
+      selectDataSource({ asOf: '2026-06-29', records: [recNoProject], projects: {} }).getSnapshot(),
+    ).toEqual(fixturesDataSource.getSnapshot());
+  });
 });

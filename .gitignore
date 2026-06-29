@@ -11,8 +11,9 @@ coverage
 # verifier logs
 .verify-logs/
 
-# generated snapshot (rebuilt from fixtures)
+# generated snapshot + report-only attribution status (rebuilt from fixtures / live ccusage)
 data/snapshot.json
+data/status.json
 
 # raw ccusage captures (regenerated, not committed)
 data/fixtures/raw-*
