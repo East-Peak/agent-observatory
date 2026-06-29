@@ -1,0 +1,126 @@
+{
+  "_note": "SCRUBBED ccusage 20.0.14 `claude daily --instances --json` envelope for the decoder contract. Synthetic encoded dirs + plausible tokens (no real paths). Exercises: a repo, a NESTED cwd under that repo that must MERGE into it, a second repo, and an undiscovered cwd that resolves to __unattributed__. Float `cost` is intentionally present and intentionally DISCARDED (cost is re-derived from tokens via the rate card).",
+  "projects": {
+    "-Users-dev-projects-yard-ops": [
+      {
+        "date": "2026-06-01",
+        "project": "-Users-dev-projects-yard-ops",
+        "inputTokens": 10,
+        "outputTokens": 20,
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": 0,
+        "totalCost": 0.1,
+        "totalTokens": 30,
+        "modelsUsed": ["claude-opus-4-8"],
+        "modelBreakdowns": [
+          {
+            "modelName": "claude-opus-4-8",
+            "inputTokens": 10,
+            "outputTokens": 20,
+            "cacheCreationTokens": 0,
+            "cacheReadTokens": 0,
+            "cost": 0.1
+          }
+        ]
+      },
+      {
+        "date": "2026-06-02",
+        "project": "-Users-dev-projects-yard-ops",
+        "inputTokens": 5,
+        "outputTokens": 5,
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": 0,
+        "totalCost": 0.05,
+        "totalTokens": 10,
+        "modelsUsed": ["claude-opus-4-8"],
+        "modelBreakdowns": [
+          {
+            "modelName": "claude-opus-4-8",
+            "inputTokens": 5,
+            "outputTokens": 5,
+            "cacheCreationTokens": 0,
+            "cacheReadTokens": 0,
+            "cost": 0.05
+          }
+        ]
+      }
+    ],
+    "-Users-dev-projects-yard-ops-src": [
+      {
+        "date": "2026-06-01",
+        "project": "-Users-dev-projects-yard-ops-src",
+        "inputTokens": 100,
+        "outputTokens": 200,
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": 0,
+        "totalCost": 1.0,
+        "totalTokens": 300,
+        "modelsUsed": ["claude-opus-4-8"],
+        "modelBreakdowns": [
+          {
+            "modelName": "claude-opus-4-8",
+            "inputTokens": 100,
+            "outputTokens": 200,
+            "cacheCreationTokens": 0,
+            "cacheReadTokens": 0,
+            "cost": 1.0
+          }
+        ]
+      }
+    ],
+    "-Users-dev-projects-marin-civic-graph": [
+      {
+        "date": "2026-06-01",
+        "project": "-Users-dev-projects-marin-civic-graph",
+        "inputTokens": 1,
+        "outputTokens": 2,
+        "cacheCreationTokens": 3,
+        "cacheReadTokens": 4,
+        "totalCost": 0.2,
+        "totalTokens": 10,
+        "modelsUsed": ["claude-sonnet-4-6"],
+        "modelBreakdowns": [
+          {
+            "modelName": "claude-sonnet-4-6",
+            "inputTokens": 1,
+            "outputTokens": 2,
+            "cacheCreationTokens": 3,
+            "cacheReadTokens": 4,
+            "cost": 0.2
+          }
+        ]
+      }
+    ],
+    "-Users-dev-Downloads-scratch": [
+      {
+        "date": "2026-06-02",
+        "project": "-Users-dev-Downloads-scratch",
+        "inputTokens": 7,
+        "outputTokens": 8,
+        "cacheCreationTokens": 0,
+        "cacheReadTokens": 0,
+        "totalCost": 0.07,
+        "totalTokens": 15,
+        "modelsUsed": ["claude-opus-4-8"],
+        "modelBreakdowns": [
+          {
+            "modelName": "claude-opus-4-8",
+            "inputTokens": 7,
+            "outputTokens": 8,
+            "cacheCreationTokens": 0,
+            "cacheReadTokens": 0,
+            "cost": 0.07
+          }
+        ]
+      }
+    ]
+  },
+  "totals": {
+    "inputTokens": 123,
+    "outputTokens": 235,
+    "cacheCreationTokens": 3,
+    "cacheReadTokens": 4,
+    "totalCost": 1.42,
+    "totalTokens": 365
+  }
+}

@@ -4,6 +4,7 @@ import {
   assembleSnapshot,
   validateSnapshot,
   reconcileTotals,
+  reconcileInstancesDaily,
   SnapshotBuildError,
   OPENCLAW_ALL_MARKER,
   OPENCLAW_DEFAULT_MODEL,
@@ -229,5 +230,30 @@ describe('reconcileTotals', () => {
 
   it('skips reconciliation when the envelope carries no totals (nothing to compare against)', () => {
     expect(reconcileTotals('openclaw', [rec({ source: 'openclaw' })], undefined)).toEqual([]);
+  });
+});
+
+describe('reconcileInstancesDaily', () => {
+  it('returns no problems when per-(day,model) instance sums equal the daily totals', () => {
+    // --instances splits a day×model across projects; summing them back must recover the daily total.
+    const instances = [
+      rec({ date: '2026-06-01', model: 'm', project: '/r/a', inputTokens: 10, outputTokens: 1 }),
+      rec({ date: '2026-06-01', model: 'm', project: '/r/b', inputTokens: 90, outputTokens: 9 }),
+    ];
+    const daily = [rec({ date: '2026-06-01', model: 'm', project: UNATTRIBUTED, inputTokens: 100, outputTokens: 10 })];
+    expect(reconcileInstancesDaily(instances, daily)).toEqual([]);
+  });
+
+  it('flags a (day,model) whose instance sum diverges from the daily total', () => {
+    const instances = [rec({ date: '2026-06-01', model: 'm', inputTokens: 10 })];
+    const daily = [rec({ date: '2026-06-01', model: 'm', inputTokens: 99 })];
+    const problems = reconcileInstancesDaily(instances, daily);
+    expect(problems.join(' ')).toMatch(/2026-06-01/);
+    expect(problems.join(' ')).toMatch(/inputTokens/);
+  });
+
+  it('flags a (day,model) present in daily but absent from --instances', () => {
+    const daily = [rec({ date: '2026-06-01', model: 'm', inputTokens: 1 })];
+    expect(reconcileInstancesDaily([], daily).join(' ')).toMatch(/absent from .*instances|2026-06-01/);
   });
 });

@@ -189,3 +189,57 @@ export function reconcileTotals(
   }
   return problems;
 }
+
+/**
+ * Reconcile the per-project claude `--instances` records against the per-(day, model) claude `daily`
+ * records: `--instances` merely splits each day×model across projects, so summing the instance records
+ * back over (day, model) must EXACTLY recover the daily totals. Any divergence — a missing/extra
+ * (day, model) or a token-class mismatch — means the two ccusage views disagree (the silent attribution
+ * drift token-only contracts can't see). Project is intentionally ignored (it's the dimension being
+ * summed away). Returns problems; empty means they reconcile. Blocking at ingest.
+ */
+export function reconcileInstancesDaily(
+  instances: readonly UsageRecord[],
+  daily: readonly UsageRecord[],
+): string[] {
+  interface Sums { input: number; output: number; cacheCreation: number; cacheRead: number }
+  const sumByDayModel = (records: readonly UsageRecord[]): Map<string, Sums> => {
+    const m = new Map<string, Sums>();
+    for (const r of records) {
+      const key = `${r.date} ${r.model}`;
+      const cur = m.get(key) ?? { input: 0, output: 0, cacheCreation: 0, cacheRead: 0 };
+      cur.input += r.inputTokens;
+      cur.output += r.outputTokens;
+      cur.cacheCreation += r.cacheCreationTokens;
+      cur.cacheRead += r.cacheReadTokens;
+      m.set(key, cur);
+    }
+    return m;
+  };
+  const inst = sumByDayModel(instances);
+  const day = sumByDayModel(daily);
+  const problems: string[] = [];
+  for (const key of [...new Set([...inst.keys(), ...day.keys()])].sort()) {
+    const [date, model] = key.split(' ');
+    const a = inst.get(key);
+    const b = day.get(key);
+    if (!a) {
+      problems.push(`${date}/${model}: present in daily but absent from --instances`);
+      continue;
+    }
+    if (!b) {
+      problems.push(`${date}/${model}: present in --instances but absent from daily`);
+      continue;
+    }
+    const fields: ReadonlyArray<readonly [string, number, number]> = [
+      ['inputTokens', a.input, b.input],
+      ['outputTokens', a.output, b.output],
+      ['cacheCreationTokens', a.cacheCreation, b.cacheCreation],
+      ['cacheReadTokens', a.cacheRead, b.cacheRead],
+    ];
+    for (const [field, av, bv] of fields) {
+      if (av !== bv) problems.push(`${date}/${model}: ${field} --instances ${av} != daily ${bv}`);
+    }
+  }
+  return problems;
+}

@@ -78,6 +78,72 @@ export function decodeClaudeDaily(env: unknown): UsageRecord[] {
   });
 }
 
+/**
+ * Decode a `ccusage claude daily --instances --json` envelope (`{ projects: { <encodedDir>: [day…] } }`)
+ * into canonical records, attributing each to a project via the injected pure `resolveFn` (encoded
+ * dir-name → project key). Multiple encoded dirs can resolve to the SAME key (a repo + its nested cwds
+ * + a worktree alias), so records are MERGED by (project, date, model) — keeping records unique by
+ * identity, which the snapshot uniqueness invariant + the activity-feed carrier key both rely on.
+ * `resolveFn` is injected so the decoder stays pure; the live-filesystem root discovery lives in the
+ * ingest. Per-model tokens are summed; ccusage's float `cost` is discarded (re-derived downstream).
+ */
+export function decodeClaudeInstances(
+  env: unknown,
+  resolveFn: (encodedDir: string) => string,
+): UsageRecord[] {
+  const shell = asObject(env, 'claude --instances envelope');
+  const projects = asObject(shell['projects'], 'claude --instances envelope.projects');
+  const acc = new Map<string, UsageRecord>();
+  for (const [encodedDir, daysU] of Object.entries(projects)) {
+    const project = resolveFn(encodedDir);
+    const days = asArray(daysU, `claude --instances projects[${encodedDir}]`);
+    days.forEach((dayU, i) => {
+      const where = `claude --instances ${encodedDir}[${i}]`;
+      const day = asObject(dayU, where);
+      const date = asString(day, 'date', where);
+      const breakdowns = asArray(day['modelBreakdowns'], `${where}.modelBreakdowns`);
+      breakdowns.forEach((mbU, j) => {
+        const w = `${where} model[${j}]`;
+        const mb = asObject(mbU, w);
+        const model = asString(mb, 'modelName', w);
+        const input = asNumber(mb, 'inputTokens', w);
+        const output = asNumber(mb, 'outputTokens', w);
+        const cacheCreation = asNumber(mb, 'cacheCreationTokens', w);
+        const cacheRead = asNumber(mb, 'cacheReadTokens', w);
+        // NUL-joined so a project key / model containing the separator can't forge a collision.
+        const acckey = `${project}\u0000${date}\u0000${model}`;
+        const existing = acc.get(acckey);
+        if (existing) {
+          acc.set(acckey, {
+            ...existing,
+            inputTokens: existing.inputTokens + input,
+            outputTokens: existing.outputTokens + output,
+            cacheCreationTokens: existing.cacheCreationTokens + cacheCreation,
+            cacheReadTokens: existing.cacheReadTokens + cacheRead,
+          });
+        } else {
+          acc.set(acckey, {
+            source: 'claude',
+            date,
+            project,
+            model,
+            inputTokens: input,
+            outputTokens: output,
+            cacheCreationTokens: cacheCreation,
+            cacheReadTokens: cacheRead,
+            reasoningTokens: 0,
+          });
+        }
+      });
+    });
+  }
+  return [...acc.values()].sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    if (a.project !== b.project) return a.project < b.project ? -1 : 1;
+    return a.model < b.model ? -1 : a.model > b.model ? 1 : 0;
+  });
+}
+
 /** Decode a `ccusage codex daily --json` envelope into canonical records. */
 export function decodeCodexDaily(env: unknown): UsageRecord[] {
   return dailyDays(env, 'codex').flatMap((day, i) => {
