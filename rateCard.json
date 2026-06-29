@@ -22,6 +22,9 @@
     "claude-sonnet-4-6": [
       { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "3000000", "output": "15000000", "cacheCreation": "3750000", "cacheRead": "300000", "reasoning": "15000000" }
     ],
+    "openclaw-mixed": [
+      { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "3000000", "output": "15000000", "cacheCreation": "3750000", "cacheRead": "300000", "reasoning": "15000000" }
+    ],
     "claude-haiku-4-5-20251001": [
       { "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "1000000", "output": "5000000", "cacheCreation": "1250000", "cacheRead": "100000", "reasoning": "5000000" }
     ],

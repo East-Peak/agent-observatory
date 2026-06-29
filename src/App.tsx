@@ -90,10 +90,14 @@ export function AppProviders({
   );
 }
 
-/** The app shell: shared scope + data source above the router, so scope persists across panels. */
-export default function App() {
+/**
+ * The app shell: shared scope + data source above the router, so scope persists across panels.
+ * Production (`main.tsx`) passes the ingested real `dataSource`; with none, it defaults to the
+ * committed fixtures (the oracle/demo path injects its own source via {@link AppProviders}).
+ */
+export default function App({ dataSource }: { readonly dataSource?: DataSource } = {}) {
   return (
-    <AppProviders>
+    <AppProviders {...(dataSource ? { dataSource } : {})}>
       <BrowserRouter>
         <AppShell />
       </BrowserRouter>

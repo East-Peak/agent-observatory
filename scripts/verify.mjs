@@ -1102,6 +1102,14 @@ const FROZEN_FILES = [
   'scripts/verify.mjs',
   'scripts/certify.mjs',
   'scripts/livelock-guard.mjs',
+  // The ingest contract. The `ingest-fixture` / `ingest-argv` gates delegate their assertions to
+  // `scripts/ingest.mjs` (which calls these), so freezing the trio stops the loop from weakening
+  // the check inside its own toolchain (Codex ingest-review #1: the gate must not be self-certifying).
+  // The decoders + normalizer they reuse are already pinned by `ccusage-decoder-contract` /
+  // `normalization-golden`; these three were the unfrozen remainder of the real-data path.
+  'scripts/ingest.mjs',
+  'scripts/ingestArgs.ts',
+  'src/domain/buildSnapshot.ts',
   // Frozen so the loop cannot move the toolchain version pins out from under `toolchain-integrity`
   // (node_modules is gitignored, so a tampered local binary is invisible to git-clean — the gate
   // instead pins vitest/tsx/vite to these locked versions). Codex r3 blocker.
