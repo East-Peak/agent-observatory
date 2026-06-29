@@ -69,7 +69,9 @@ export function assembleSnapshot(
     throw new SnapshotBuildError('cannot assemble an empty snapshot without an explicit asOf');
   }
   const asOf = opts.asOf ?? records[records.length - 1]!.date;
-  // The registry is derived from the record keys; `opts.projects` supplies alias labels (ingest).
+  // When given, `opts.projects` is the COMPLETE registry (it replaces, not merges) — the ingest builds
+  // it up front via `deriveRegistry(records, aliasOverrides)` and passes the whole thing. Absent it, we
+  // derive a basename/sentinel registry from the record keys.
   const projects = opts.projects ?? deriveRegistry(records);
   return { asOf, records, projects };
 }
@@ -114,6 +116,21 @@ export function validateSnapshot(
   });
   if (unpriceable.size > 0) {
     problems.push(`unpriceable model(s) — no rate band covers: ${[...unpriceable].sort().join(', ')}`);
+  }
+
+  // Canonical records are unique by full identity (date, source, project, model). The renderer's
+  // per-record carriers (e.g. the activity feed's `<source>|<date>|<model>|<project>` key) and the
+  // oracle's counted-multiset comparison both assume this — a duplicate would let two cells share a
+  // carrier key, where a wrong value on the second could hide. Fail closed at the data boundary.
+  const seenIdentity = new Set<string>();
+  const dupIdentity = new Set<string>();
+  for (const r of snap.records) {
+    const id = `${r.date}|${r.source}|${r.project}|${r.model}`;
+    if (seenIdentity.has(id)) dupIdentity.add(id);
+    else seenIdentity.add(id);
+  }
+  if (dupIdentity.size > 0) {
+    problems.push(`duplicate record identity (date|source|project|model): ${[...dupIdentity].sort().join(', ')}`);
   }
 
   // Registry consistency: every record's project key must resolve, and reserved sentinels must keep

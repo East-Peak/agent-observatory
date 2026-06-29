@@ -496,7 +496,7 @@ import { normalizeCost } from ${q(join(ROOT, 'src/domain/normalizeCost.ts'))};
 import { readFileSync } from 'node:fs';
 const card = JSON.parse(readFileSync(${q(join(ROOT, 'rateCard.json'))}, 'utf8'));
 const input = JSON.parse(readFileSync(${q(join(ROOT, 'data/fixtures/normalization-input.json'))}, 'utf8'));
-const rows = input.records.map((r) => ({ model: r.model, date: r.date, costPico: normalizeCost(r, card).toString() }));
+const rows = input.records.map((r) => ({ date: r.date, source: r.source, project: r.project, model: r.model, costPico: normalizeCost(r, card).toString() }));
 const total = rows.reduce((a, r) => a + BigInt(r.costPico), 0n).toString();
 process.stdout.write(JSON.stringify({ rows, total, version: card.version }));
 `;
@@ -510,12 +510,15 @@ process.stdout.write(JSON.stringify({ rows, total, version: card.version }));
   if (got.version !== expected.rateCardVersion) {
     fails.push(`card version ${got.version} != ${expected.rateCardVersion}`);
   }
-  const want = new Map(expected.rows.map((r) => [`${r.model}|${r.date}`, r.costPico]));
+  // Key by the FULL canonical identity (date, source, project, model) — the same tuple the snapshot
+  // sort + carrier keys use — so the frozen gate enforces the same identity the mutable test does.
+  const idKey = (r) => `${r.date}|${r.source}|${r.project}|${r.model}`;
+  const want = new Map(expected.rows.map((r) => [idKey(r), r.costPico]));
   if (got.rows.length !== expected.rows.length) {
     fails.push(`row count ${got.rows.length} != ${expected.rows.length}`);
   }
   for (const row of got.rows) {
-    const key = `${row.model}|${row.date}`;
+    const key = idKey(row);
     if (!want.has(key)) fails.push(`unexpected row ${key}`);
     else if (row.costPico !== want.get(key)) fails.push(`${key}: ${row.costPico} != ${want.get(key)}`);
   }
@@ -1120,6 +1123,9 @@ const FROZEN_FILES = [
   'scripts/ingest.mjs',
   'scripts/ingestArgs.ts',
   'src/domain/buildSnapshot.ts',
+  // Frozen buildSnapshot.ts imports the reserved-project sentinels + their kinds/labels from here,
+  // and validateSnapshot trusts that truth — so the registry constants must not drift post-baseline.
+  'src/domain/projects.ts',
   // Frozen so the loop cannot move the toolchain version pins out from under `toolchain-integrity`
   // (node_modules is gitignored, so a tampered local binary is invisible to git-clean — the gate
   // instead pins vitest/tsx/vite to these locked versions). Codex r3 blocker.

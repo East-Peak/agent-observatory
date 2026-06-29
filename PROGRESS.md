@@ -46,7 +46,7 @@ Every panel applies the SAME shared `(range, source)` scope and renders the shar
   `cache-creation-tokens`(tokens) `fresh-input-tokens`(tokens) `saved-cost`(cost). `saved-cost` =
   Σ cacheReadTokens × (input rate − cacheRead rate) at each record's point-in-time band.
 - **activityFeed** (`/activity-feed`): metric `total-cost`(cost); one `feed-item` per scoped record,
-  `data-feed-key="<source>|<date>|<model>"`, `data-feed-cost-pico`(cost), `data-feed-date`, `data-feed-source`.
+  `data-feed-key="<source>|<date>|<model>|<projectKey>"`, `data-feed-cost-pico`(cost), `data-feed-date`, `data-feed-source`.
 
 At ≥2 live panels the oracle also navigates the REAL nav between EVERY ordered pair of live routes
 and asserts the selected range is SHARED — so each new panel needs a reachable nav link + the shared

@@ -171,6 +171,22 @@ describe('validateSnapshot', () => {
     expect(validateSnapshot(snap, priceable).join(' ')).toMatch(/project/i);
   });
 
+  it('flags two records sharing a full identity (date, source, project, model)', () => {
+    // The per-record carriers + the oracle multiset assume canonical records are unique by identity.
+    const snap = assembleSnapshot([[rec({ model: 'claude-opus-4-8' }), rec({ model: 'claude-opus-4-8' })]]);
+    expect(validateSnapshot(snap, priceable).join(' ')).toMatch(/duplicate record identity/);
+  });
+
+  it('does not flag records that differ only by project (distinct identity)', () => {
+    const snap = assembleSnapshot([
+      [
+        rec({ model: 'claude-opus-4-8', project: '/r/alpha' }),
+        rec({ model: 'claude-opus-4-8', project: '/r/beta' }),
+      ],
+    ]);
+    expect(validateSnapshot(snap, priceable)).toEqual([]);
+  });
+
   it('flags a reserved sentinel registered with the wrong kind', () => {
     const snap = {
       asOf: '2026-06-29',

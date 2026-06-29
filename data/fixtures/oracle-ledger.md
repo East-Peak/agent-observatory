@@ -142,5 +142,8 @@ card; `tokens` / `count` / `percent` stay invariant — `scale-factors.json` + t
 
 *(Re-derived 2026-06-29 for the v2 project-aware snapshot — 164 records, `project` dimension added. Windows
 are unchanged (same `asOf` + span); only per-day token/cost distribution shifted as claude records spread
-across the repo projects. Cross-checked: this native-Date derivation == the app's `dateRange.ts` recompute
-== the live panel DOM, all three independent.)*
+across the repo projects. The windowing/aggregation layer is independently anchored: a native-UTC-Date
+windowing pass (not the app's `dateRange.ts`) produced these totals, and they were confirmed equal to the
+app's `dateRange.ts` recompute AND the live panel DOM. The shared per-record cost primitive (`normalizeCost`)
+is trusted separately — anchored exactly by the `normalization-golden` + `normalization-property` gates — so
+those two are agreement checks on the windowing, not independent re-derivations of cost.)*

@@ -779,6 +779,28 @@ function compareCells(label: string, expected: Cell[], got: Cell[], fails: strin
       }
     }
   }
+  // The first-occurrence check above fully covers UNIQUE carrier keys. For a key that REPEATS, a wrong
+  // value on a non-first cell would slip past it — so for any repeated key, additionally assert the full
+  // (value, kind, extra) signature multisets match. Canonical records are unique by identity (enforced
+  // by validateSnapshot), so this is a fail-closed backstop, not a normal path.
+  const repeated = new Set(
+    [...gotCounts.keys(), ...expCounts.keys()].filter((k) => (gotCounts.get(k) ?? 0) > 1 || (expCounts.get(k) ?? 0) > 1),
+  );
+  if (repeated.size > 0) {
+    const sigOf = (c: Cell): string => `${keyOf(c)}|${c.value}|${c.kind}|${c.extra ? JSON.stringify(c.extra) : ''}`;
+    const sigCounts = (cells: Cell[]): Map<string, number> => {
+      const m = new Map<string, number>();
+      for (const c of cells) if (repeated.has(keyOf(c))) m.set(sigOf(c), (m.get(sigOf(c)) ?? 0) + 1);
+      return m;
+    };
+    const gotSig = sigCounts(got);
+    const expSig = sigCounts(expected);
+    for (const s of [...new Set([...gotSig.keys(), ...expSig.keys()])].sort()) {
+      const g = gotSig.get(s) ?? 0;
+      const e = expSig.get(s) ?? 0;
+      if (g !== e) fails.push(`${label}: repeated-key cell [${s}] appears ${g}× (expected ${e}×)`);
+    }
+  }
 }
 
 function goldenCellsFor(key: string, range: string, source: string): Cell[] | null {

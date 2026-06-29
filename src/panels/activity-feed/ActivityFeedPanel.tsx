@@ -102,8 +102,8 @@ export function ActivityFeedPanel() {
             data-feed-key={it.key}
             data-feed-date={it.date}
             data-feed-source={it.source}
-            data-feed-project={sourceName(it.source)}
-            data-feed-session={`${it.source}-${it.date}-${it.model}`}
+            data-feed-project={it.project}
+            data-feed-session={`${it.source}-${it.date}-${it.model}-${it.project}`}
             data-feed-cost-pico={it.costPico.toString()}
             data-value-kind="cost"
           >
