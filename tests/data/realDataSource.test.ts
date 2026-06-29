@@ -60,5 +60,13 @@ describe('selectDataSource', () => {
     expect(
       selectDataSource({ asOf: '2026-06-29', records: [recNoProject], projects: {} }).getSnapshot(),
     ).toEqual(fixturesDataSource.getSnapshot());
+    // a record whose project is NOT registered (empty registry) is rejected too — it would render undefined.
+    expect(
+      selectDataSource({
+        asOf: '2026-06-29',
+        records: [{ ...recNoProject, project: '/repo/ghost' }],
+        projects: {},
+      }).getSnapshot(),
+    ).toEqual(fixturesDataSource.getSnapshot());
   });
 });

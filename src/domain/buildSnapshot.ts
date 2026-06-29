@@ -206,7 +206,7 @@ export function reconcileInstancesDaily(
   const sumByDayModel = (records: readonly UsageRecord[]): Map<string, Sums> => {
     const m = new Map<string, Sums>();
     for (const r of records) {
-      const key = `${r.date} ${r.model}`;
+      const key = `${r.date}\u0000${r.model}`;
       const cur = m.get(key) ?? { input: 0, output: 0, cacheCreation: 0, cacheRead: 0 };
       cur.input += r.inputTokens;
       cur.output += r.outputTokens;
@@ -220,7 +220,7 @@ export function reconcileInstancesDaily(
   const day = sumByDayModel(daily);
   const problems: string[] = [];
   for (const key of [...new Set([...inst.keys(), ...day.keys()])].sort()) {
-    const [date, model] = key.split(' ');
+    const [date, model] = key.split('\u0000');
     const a = inst.get(key);
     const b = day.get(key);
     if (!a) {

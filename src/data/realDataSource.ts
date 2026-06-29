@@ -12,9 +12,13 @@ function isSnapshotShape(value: unknown): value is Snapshot {
   const v = value as Record<string, unknown>;
   if (typeof v.asOf !== 'string' || !Array.isArray(v.records)) return false;
   if (typeof v.projects !== 'object' || v.projects === null) return false;
+  const projects = v.projects as Record<string, unknown>;
+  // Every record's project must be a non-empty key that EXISTS in the registry — a registry the
+  // renderer reads `projects[key].kind/label` from. A record pointing at an unregistered project would
+  // render undefined, so reject the whole artifact and fall back.
   return v.records.every((r) => {
     const project = (r as { project?: unknown }).project;
-    return typeof project === 'string' && project.length > 0;
+    return typeof project === 'string' && project.length > 0 && project in projects;
   });
 }
 

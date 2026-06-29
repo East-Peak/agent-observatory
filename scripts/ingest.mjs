@@ -121,12 +121,20 @@ function discoverKnownRoots(bases = SEARCH_BASES) {
   const roots = new Set();
   for (const base of bases.map(expandHome)) {
     if (!isDir(base)) continue;
-    if (isGitRoot(base)) {
-      roots.add(base);
+    // A base can be a repo AND contain child repos — record both and let longest-prefix resolution
+    // pick the most specific (so a child repo is never swallowed by an umbrella base).
+    if (isGitRoot(base)) roots.add(base);
+    let entries;
+    try {
+      entries = readdirSync(base, { withFileTypes: true });
+    } catch (e) {
+      err(`warning: cannot scan search base ${base} (${e?.code ?? e}); skipping`);
       continue;
     }
-    for (const entry of readdirSync(base, { withFileTypes: true })) {
-      if (entry.isDirectory() && isGitRoot(join(base, entry.name))) roots.add(join(base, entry.name));
+    for (const entry of entries) {
+      const child = join(base, entry.name);
+      // isDir() follows symlinks (entry.isDirectory() would skip a symlinked repo/worktree).
+      if (isDir(child) && isGitRoot(child)) roots.add(child);
     }
   }
   return [...roots];
@@ -275,7 +283,7 @@ function argvSelfcheck() {
     [['--out', 'x.json'], { kind: 'ingest', source: 'ccusage', check: false, out: 'x.json' }],
     [['--argv-selfcheck'], { kind: 'selfcheck', source: 'ccusage', check: false, out: DEFAULT_OUT }],
   ];
-  const mustThrow = [['--out'], ['--bogus'], ['stray']];
+  const mustThrow = [['--out'], ['--bogus'], ['stray'], ['--argv-selfcheck', '--bogus']];
   const commands = [
     ['claude-daily', CLAUDE_DAILY_ARGS],
     ['claude-instances', CLAUDE_INSTANCES_ARGS],

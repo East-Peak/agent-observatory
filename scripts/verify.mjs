@@ -1126,6 +1126,9 @@ const FROZEN_FILES = [
   // Frozen buildSnapshot.ts imports the reserved-project sentinels + their kinds/labels from here,
   // and validateSnapshot trusts that truth — so the registry constants must not drift post-baseline.
   'src/domain/projects.ts',
+  // The pure project resolver — load-bearing for attribution (the ingest + decodeClaudeInstances call
+  // it), pinned by the frozen project-attribution.json contract. Frozen so its forward-match can't drift.
+  'src/domain/projectIdentity.ts',
   // Frozen so the loop cannot move the toolchain version pins out from under `toolchain-integrity`
   // (node_modules is gitignored, so a tampered local binary is invisible to git-clean — the gate
   // instead pins vitest/tsx/vite to these locked versions). Codex r3 blocker.

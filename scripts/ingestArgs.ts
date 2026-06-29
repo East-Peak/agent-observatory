@@ -29,8 +29,12 @@ export class IngestArgError extends Error {
 }
 
 export function parseIngestArgs(argv: readonly string[]): IngestPlan {
-  // --argv-selfcheck is exclusive: it's the gate's offline self-test entry point.
+  // --argv-selfcheck is exclusive: it's the gate's offline self-test entry point and takes no other
+  // arguments — reject extras so the fail-closed argv contract holds outside the fixed verifier command.
   if (argv.includes('--argv-selfcheck')) {
+    if (argv.length !== 1) {
+      throw new IngestArgError('--argv-selfcheck does not accept other arguments');
+    }
     return { kind: 'selfcheck', source: 'ccusage', check: false, out: DEFAULT_OUT };
   }
 
