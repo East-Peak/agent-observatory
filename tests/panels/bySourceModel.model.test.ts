@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { selectBySourceModel } from '@/panels/by-source-model/bySourceModelModel';
 import { type RateCard } from '@/domain/normalizeCost';
+import { UNATTRIBUTED, RESERVED_PROJECTS } from '@/domain/projects';
 import type { Snapshot, UsageRecord } from '@/domain/types';
 
 const band = (over: Record<string, string>) => ({
@@ -27,6 +28,7 @@ const card: RateCard = {
 const rec = (over: Partial<UsageRecord>): UsageRecord => ({
   source: 'claude',
   date: '2026-06-20',
+  project: UNATTRIBUTED,
   model: 'm1',
   inputTokens: 0,
   outputTokens: 0,
@@ -40,6 +42,7 @@ describe('selectBySourceModel', () => {
   it('groups scoped records by (source, model) with Σ pico cost + a matching total', () => {
     const snapshot: Snapshot = {
       asOf: '2026-06-27',
+      projects: RESERVED_PROJECTS,
       records: [
         rec({ source: 'claude', model: 'm1', inputTokens: 10 }), // 10e6
         rec({ source: 'claude', model: 'm1', date: '2026-06-21', inputTokens: 1 }), // 1e6 → claude|m1 = 11e6
@@ -57,6 +60,7 @@ describe('selectBySourceModel', () => {
   it('sums every token kind into a scoped total-tokens count', () => {
     const snapshot: Snapshot = {
       asOf: '2026-06-27',
+      projects: RESERVED_PROJECTS,
       records: [
         rec({
           source: 'claude',
@@ -77,6 +81,7 @@ describe('selectBySourceModel', () => {
   it('applies the source filter', () => {
     const snapshot: Snapshot = {
       asOf: '2026-06-27',
+      projects: RESERVED_PROJECTS,
       records: [
         rec({ source: 'claude', model: 'm1', inputTokens: 10 }),
         rec({ source: 'codex', model: 'm2', inputTokens: 100 }),

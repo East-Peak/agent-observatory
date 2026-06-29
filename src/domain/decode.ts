@@ -1,5 +1,8 @@
 import type { Source, UsageRecord } from './types';
-import { UNATTRIBUTED, CODEX_PROJECT, OPENCLAW_PROJECT } from './projects';
+// Explicit .ts extension: this VALUE import must resolve under Node-native type-stripping too (the
+// ingest runs decode.ts directly via Node, which — unlike the bundler — requires the extension on a
+// runtime relative import; the type-only `./types` import above is erased so it needs none).
+import { UNATTRIBUTED, CODEX_PROJECT, OPENCLAW_PROJECT } from './projects.ts';
 
 /** Thrown at the ccusage wire boundary when an envelope is missing/shaped wrong. */
 export class CcusageDecodeError extends Error {

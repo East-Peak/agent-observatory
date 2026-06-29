@@ -3,13 +3,16 @@ import { normalizeCost, type RateCard } from '@/domain/normalizeCost';
 import { currentWindow, inWindow, type RangeKey } from '@/domain/dateRange';
 import { sourceOfKey, type SourceKey } from '@/domain/sources';
 
-/** One activity-feed item: a single scoped `(source, date, model)` cell with its normalized cost. */
+/** One activity-feed item: a single scoped `(source, date, model, project)` cell with its normalized cost. */
 export interface FeedItem {
-  /** `"<source>|<date>|<model>"` — the house-style feed key the verifier reads. */
+  /** `"<source>|<date>|<model>|<projectKey>"` — the house-style feed key the verifier reads. The
+   * project key is part of the identity so per-project records sharing a (source, date, model) triple
+   * stay distinct feed rows rather than collapsing/colliding. */
   readonly key: string;
   readonly source: Source;
   readonly date: string;
   readonly model: string;
+  readonly project: string;
   readonly costPico: bigint;
   readonly totalTokens: number;
 }
@@ -55,10 +58,11 @@ export function selectActivityFeed(
   const inCurrent = scoped.filter((r) => inWindow(r.date, current));
 
   const items: FeedItem[] = inCurrent.map((r) => ({
-    key: `${r.source}|${r.date}|${r.model}`,
+    key: `${r.source}|${r.date}|${r.model}|${r.project}`,
     source: r.source,
     date: r.date,
     model: r.model,
+    project: r.project,
     costPico: normalizeCost(r, card),
     totalTokens: tokenTotal(r),
   }));

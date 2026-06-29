@@ -1,5 +1,7 @@
 import type { ProjectMeta, Snapshot, Source, UsageRecord } from './types';
-import { deriveRegistry, RESERVED_PROJECTS } from './projects';
+// Explicit .ts extension so this VALUE import resolves under Node-native type-stripping (the ingest
+// imports buildSnapshot.ts directly via Node, which requires the extension on a runtime relative import).
+import { deriveRegistry, RESERVED_PROJECTS } from './projects.ts';
 
 /** Raised when records can't be assembled into a well-formed snapshot. */
 export class SnapshotBuildError extends Error {

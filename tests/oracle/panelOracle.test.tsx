@@ -312,7 +312,9 @@ function recomputeActivityFeed(
     total += c;
     cells.push({
       carrier: 'feed',
-      key: `${r.source}|${r.date}|${r.model}`,
+      // Project enters the feed key (matches activityFeedModel) so per-project records sharing a
+      // (source, date, model) triple stay distinct rows rather than colliding in the multiset.
+      key: `${r.source}|${r.date}|${r.model}|${r.project}`,
       value: c.toString(),
       kind: 'cost',
       extra: { date: r.date, source: r.source },

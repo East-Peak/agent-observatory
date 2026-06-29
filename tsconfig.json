@@ -5,6 +5,11 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    // Permit explicit `.ts` extensions on relative imports. Required because the domain modules in the
+    // ingest chain (decode.ts, buildSnapshot.ts → projects.ts) run under Node-native type-stripping,
+    // which — unlike the bundler — resolves a runtime relative value import only with its extension.
+    // Safe with noEmit (vite produces the build; tsc only typechecks).
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "isolatedModules": true,
     "skipLibCheck": true,

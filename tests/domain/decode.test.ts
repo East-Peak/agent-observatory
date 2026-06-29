@@ -5,6 +5,7 @@ import {
   decodeOpenclawDaily,
   CcusageDecodeError,
 } from '@/domain/decode';
+import { UNATTRIBUTED, CODEX_PROJECT, OPENCLAW_PROJECT } from '@/domain/projects';
 
 describe('decodeClaudeDaily', () => {
   it('maps each day×model breakdown to a canonical record, dropping ccusage cost', () => {
@@ -51,7 +52,8 @@ describe('decodeClaudeDaily', () => {
     expect(decodeClaudeDaily(env)).toEqual([
       {
         source: 'claude',
-        date: '2026-06-01',
+        project: UNATTRIBUTED,
+        date:'2026-06-01',
         model: 'claude-sonnet-4-6',
         inputTokens: 92,
         outputTokens: 2651,
@@ -61,7 +63,8 @@ describe('decodeClaudeDaily', () => {
       },
       {
         source: 'claude',
-        date: '2026-06-01',
+        project: UNATTRIBUTED,
+        date:'2026-06-01',
         model: 'claude-opus-4-8',
         inputTokens: 10,
         outputTokens: 500,
@@ -71,7 +74,8 @@ describe('decodeClaudeDaily', () => {
       },
       {
         source: 'claude',
-        date: '2026-06-02',
+        project: UNATTRIBUTED,
+        date:'2026-06-02',
         model: 'claude-sonnet-4-6',
         inputTokens: 5,
         outputTokens: 100,
@@ -131,7 +135,8 @@ describe('decodeCodexDaily', () => {
     expect(decodeCodexDaily(env)).toEqual([
       {
         source: 'codex',
-        date: '2026-06-01',
+        project: CODEX_PROJECT,
+        date:'2026-06-01',
         model: 'gpt-5.3-codex',
         inputTokens: 710161,
         outputTokens: 45339,
@@ -141,7 +146,8 @@ describe('decodeCodexDaily', () => {
       },
       {
         source: 'codex',
-        date: '2026-06-01',
+        project: CODEX_PROJECT,
+        date:'2026-06-01',
         model: 'gpt-5.4-codex',
         inputTokens: 100,
         outputTokens: 50,
@@ -151,7 +157,8 @@ describe('decodeCodexDaily', () => {
       },
       {
         source: 'codex',
-        date: '2026-06-02',
+        project: CODEX_PROJECT,
+        date:'2026-06-02',
         model: 'gpt-5.3-codex',
         inputTokens: 1,
         outputTokens: 2,
@@ -194,7 +201,8 @@ describe('decodeOpenclawDaily', () => {
     expect(decodeOpenclawDaily(env)).toEqual([
       {
         source: 'openclaw',
-        date: '2026-06-01',
+        project: OPENCLAW_PROJECT,
+        date:'2026-06-01',
         model: 'claude-sonnet-4-6',
         inputTokens: 2178,
         outputTokens: 73152,
@@ -204,7 +212,8 @@ describe('decodeOpenclawDaily', () => {
       },
       {
         source: 'openclaw',
-        date: '2026-06-02',
+        project: OPENCLAW_PROJECT,
+        date:'2026-06-02',
         model: '(all)',
         inputTokens: 10,
         outputTokens: 20,

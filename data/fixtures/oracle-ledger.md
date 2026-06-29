@@ -133,9 +133,14 @@ card; `tokens` / `count` / `percent` stay invariant — `scale-factors.json` + t
 
 | range / source | window | total-cost | tokens | active-days | delta-cost | delta-bp | points |
 |---|---|--:|--:|--:|--:|--:|--:|
-| all / all | 2026-05-19..2026-06-27 | 703406512550000 | 965926512 | 40 | 703406512550000 | 0 | 40 |
-| last7 / all | 2026-06-21..2026-06-27 | 102788448250000 | 137773058 | 7 | -4827174200000 | -448 | 7 |
-| thisMonth / all | 2026-06-01..2026-06-27 | 452883677250000 | 629015353 | 27 | 202360841950000 | 8077 | 27 |
-| last30 / claude | 2026-05-29..2026-06-27 | 336713989600000 | 418872218 | 30 | 215927444450000 | 17876 | 30 |
-| all / codex | 2026-05-19..2026-06-27 | 174091569500000 | 261728456 | 32 | 174091569500000 | 0 | 32 |
-| all / openclaw | 2026-05-19..2026-06-27 | 71814408300000 | 131991925 | 23 | 71814408300000 | 0 | 23 |
+| all / all | 2026-05-19..2026-06-27 | 696496510350000 | 953620556 | 40 | 696496510350000 | 0 | 40 |
+| last7 / all | 2026-06-21..2026-06-27 | 131393658800000 | 158361185 | 7 | 33240678550000 | 3386 | 7 |
+| thisMonth / all | 2026-06-01..2026-06-27 | 473702740650000 | 685098244 | 27 | 250908970950000 | 11261 | 27 |
+| last30 / claude | 2026-05-29..2026-06-27 | 338703163850000 | 439350339 | 30 | 234454078750000 | 22489 | 30 |
+| all / codex | 2026-05-19..2026-06-27 | 172675456500000 | 246451984 | 32 | 172675456500000 | 0 | 32 |
+| all / openclaw | 2026-05-19..2026-06-27 | 80868804900000 | 160274685 | 25 | 80868804900000 | 0 | 25 |
+
+*(Re-derived 2026-06-29 for the v2 project-aware snapshot — 164 records, `project` dimension added. Windows
+are unchanged (same `asOf` + span); only per-day token/cost distribution shifted as claude records spread
+across the repo projects. Cross-checked: this native-Date derivation == the app's `dateRange.ts` recompute
+== the live panel DOM, all three independent.)*

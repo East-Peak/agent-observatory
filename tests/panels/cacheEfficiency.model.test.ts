@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { selectCacheEfficiency } from '@/panels/cache-efficiency/cacheEfficiencyModel';
 import { type RateCard } from '@/domain/normalizeCost';
+import { UNATTRIBUTED, RESERVED_PROJECTS } from '@/domain/projects';
 import type { Snapshot, UsageRecord } from '@/domain/types';
 
 const band = (over: Record<string, string>) => ({
@@ -27,6 +28,7 @@ const card: RateCard = {
 const rec = (over: Partial<UsageRecord>): UsageRecord => ({
   source: 'claude',
   date: '2026-06-20',
+  project: UNATTRIBUTED,
   model: 'm1',
   inputTokens: 0,
   outputTokens: 0,
@@ -40,6 +42,7 @@ describe('selectCacheEfficiency', () => {
   it('sums scoped cache/fresh tokens and pico saved = Σ cacheRead × (inputRate − cacheReadRate)', () => {
     const snapshot: Snapshot = {
       asOf: '2026-06-27',
+      projects: RESERVED_PROJECTS,
       records: [
         rec({ model: 'm1', cacheReadTokens: 1000 }), // 1000 × (1e6 − 1e5) = 900,000,000
         rec({ source: 'codex', model: 'm2', inputTokens: 50, cacheReadTokens: 2000 }), // 2000 × (3e6 − 3e5) = 5,400,000,000
@@ -55,6 +58,7 @@ describe('selectCacheEfficiency', () => {
   it('applies the source filter', () => {
     const snapshot: Snapshot = {
       asOf: '2026-06-27',
+      projects: RESERVED_PROJECTS,
       records: [
         rec({ model: 'm1', cacheReadTokens: 1000 }),
         rec({ source: 'codex', model: 'm2', inputTokens: 50, cacheReadTokens: 2000 }),

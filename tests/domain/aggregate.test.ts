@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { aggregateByDay } from '@/domain/aggregate';
 import { type RateCard } from '@/domain/normalizeCost';
+import { UNATTRIBUTED } from '@/domain/projects';
 import type { UsageRecord } from '@/domain/types';
 
 const card: RateCard = {
@@ -25,6 +26,7 @@ const card: RateCard = {
 const rec = (over: Partial<UsageRecord>): UsageRecord => ({
   source: 'claude',
   date: '2026-06-01',
+  project: UNATTRIBUTED,
   model: 'm1',
   inputTokens: 0,
   outputTokens: 0,

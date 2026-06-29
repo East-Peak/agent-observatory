@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeCost, RateCardError, type RateCard } from '@/domain/normalizeCost';
+import { UNATTRIBUTED } from '@/domain/projects';
 import type { UsageRecord } from '@/domain/types';
 
 // m1's price doubled on 2026-06-01 (a future price change appended as a new band).
@@ -34,6 +35,7 @@ const card: RateCard = {
 const rec = (over: Partial<UsageRecord>): UsageRecord => ({
   source: 'codex',
   date: '2026-03-01',
+  project: UNATTRIBUTED,
   model: 'm1',
   inputTokens: 0,
   outputTokens: 0,

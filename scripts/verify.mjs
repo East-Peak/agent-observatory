@@ -630,9 +630,16 @@ process.stdout.write(JSON.stringify({ ok: fails.length === 0, n, fails: fails.sl
 // ccusage-decoder-contract: decode the frozen scrubbed per-source envelopes through the
 // app's real decoders (via tsx) and check every canonical field against an INDEPENDENT
 // reconstruction from the raw envelope (guards PM-006 envelope drift).
+// Reserved project sentinels the daily decoders stamp (mirror of src/domain/projects.ts — daily
+// envelopes carry no per-project signal, so claude→Unattributed [reconciliation-only], codex/
+// openclaw→their tool sentinel). Pinned here so the frozen gate fails on a wrong-project decoder.
+const D_UNATTRIBUTED = '__unattributed__';
+const D_CODEX = '__codex__';
+const D_OPENCLAW = '__openclaw__';
 const RECORD_FIELDS = [
   'source',
   'date',
+  'project',
   'model',
   'inputTokens',
   'outputTokens',
@@ -690,6 +697,7 @@ process.stdout.write(JSON.stringify({
       wantClaude.push({
         source: 'claude',
         date: day.date,
+        project: D_UNATTRIBUTED,
         model: mb.modelName,
         inputTokens: mb.inputTokens,
         outputTokens: mb.outputTokens,
@@ -705,6 +713,7 @@ process.stdout.write(JSON.stringify({
       wantCodex.push({
         source: 'codex',
         date: day.date,
+        project: D_CODEX,
         model,
         inputTokens: m.inputTokens,
         outputTokens: m.outputTokens,
@@ -721,6 +730,7 @@ process.stdout.write(JSON.stringify({
     wantOpenclaw.push({
       source: 'openclaw',
       date: day.date,
+      project: D_OPENCLAW,
       model,
       inputTokens: day.inputTokens,
       outputTokens: day.outputTokens,

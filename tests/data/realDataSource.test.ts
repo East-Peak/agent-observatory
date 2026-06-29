@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { selectDataSource } from '@/data/realDataSource';
 import { fixturesDataSource, baseRateCard } from '@/data/FixturesDataSource';
+import { UNATTRIBUTED, RESERVED_PROJECTS } from '@/domain/projects';
 import type { Snapshot } from '@/domain/types';
 
 const fakeReal: Snapshot = {
@@ -9,6 +10,7 @@ const fakeReal: Snapshot = {
     {
       source: 'claude',
       date: '2026-06-29',
+      project: UNATTRIBUTED,
       model: 'claude-opus-4-8',
       inputTokens: 1,
       outputTokens: 2,
@@ -17,6 +19,7 @@ const fakeReal: Snapshot = {
       reasoningTokens: 0,
     },
   ],
+  projects: { [UNATTRIBUTED]: RESERVED_PROJECTS[UNATTRIBUTED]! },
 };
 
 describe('selectDataSource', () => {
