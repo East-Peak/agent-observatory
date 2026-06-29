@@ -4,7 +4,9 @@ import { DataSourceProvider } from '@/data/DataSourceContext';
 import type { DataSource } from '@/data/DataSource';
 import { ScopeProvider, type Scope } from '@/app/ScopeProvider';
 import { SpendOverviewPanel } from '@/panels/spend-overview/SpendOverviewPanel';
+import { BySourceModelPanel } from '@/panels/by-source-model/BySourceModelPanel';
 import { CacheEfficiencyPanel } from '@/panels/cache-efficiency/CacheEfficiencyPanel';
+import { ActivityFeedPanel } from '@/panels/activity-feed/ActivityFeedPanel';
 
 /**
  * The live panels wired into the shell. Promoting a panel to `live` adds its row here AND a
@@ -15,7 +17,9 @@ import { CacheEfficiencyPanel } from '@/panels/cache-efficiency/CacheEfficiencyP
  */
 const NAV = [
   { to: '/', label: 'Spend Overview' },
+  { to: '/by-source-model', label: 'By Source & Model' },
   { to: '/cache-efficiency', label: 'Cache Efficiency' },
+  { to: '/activity-feed', label: 'Activity Feed' },
 ] as const;
 
 /** The REAL route table (router-agnostic). Shared by production `<App>` and the frozen oracle. */
@@ -23,7 +27,9 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<SpendOverviewPanel />} />
+      <Route path="/by-source-model" element={<BySourceModelPanel />} />
       <Route path="/cache-efficiency" element={<CacheEfficiencyPanel />} />
+      <Route path="/activity-feed" element={<ActivityFeedPanel />} />
     </Routes>
   );
 }

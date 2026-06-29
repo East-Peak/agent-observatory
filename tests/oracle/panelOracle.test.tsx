@@ -262,7 +262,10 @@ function recomputeBySourceModel(
     const key = `${r.source}|${r.model}`;
     by.set(key, (by.get(key) ?? 0n) + c);
   }
-  const cells: Cell[] = [{ carrier: 'metric', key: 'total-cost', value: total.toString(), kind: 'cost' }];
+  const cells: Cell[] = [
+    { carrier: 'metric', key: 'total-cost', value: total.toString(), kind: 'cost' },
+    { carrier: 'metric', key: 'total-tokens', value: String(inScope.reduce((s, r) => s + tokenTotal(r), 0)), kind: 'tokens' },
+  ];
   for (const [key, c] of by) cells.push({ carrier: 'row', key, value: c.toString(), kind: 'cost' });
   return cells;
 }
@@ -315,6 +318,7 @@ function recomputeActivityFeed(
       extra: { date: r.date, source: r.source },
     });
   }
+  cells.unshift({ carrier: 'metric', key: 'total-tokens', value: String(inScope.reduce((s, r) => s + tokenTotal(r), 0)), kind: 'tokens' });
   cells.unshift({ carrier: 'metric', key: 'total-cost', value: total.toString(), kind: 'cost' });
   return cells;
 }
