@@ -1,4 +1,5 @@
-import type { Snapshot, Source, UsageRecord } from './types';
+import type { ProjectMeta, Snapshot, Source, UsageRecord } from './types';
+import { deriveRegistry, RESERVED_PROJECTS } from './projects';
 
 /** Raised when records can't be assembled into a well-formed snapshot. */
 export class SnapshotBuildError extends Error {
@@ -41,10 +42,12 @@ export function remapOpenclawAll(
 /** Stable source ordering for the deterministic record sort. */
 const SOURCE_ORDER: Record<Source, number> = { claude: 0, codex: 1, openclaw: 2 };
 
-/** Deterministic order: date asc, then source, then model — byte-stable for a given input set. */
+/** Deterministic order: date, source, project, then model — byte-stable for a given input set
+ * (project enters the key so multiple per-project records sharing date/source/model stay stable). */
 function compareRecords(a: UsageRecord, b: UsageRecord): number {
   if (a.date !== b.date) return a.date < b.date ? -1 : 1;
   if (a.source !== b.source) return SOURCE_ORDER[a.source] - SOURCE_ORDER[b.source];
+  if (a.project !== b.project) return a.project < b.project ? -1 : 1;
   if (a.model !== b.model) return a.model < b.model ? -1 : 1;
   return 0;
 }
@@ -57,14 +60,16 @@ function compareRecords(a: UsageRecord, b: UsageRecord): number {
  */
 export function assembleSnapshot(
   groups: readonly (readonly UsageRecord[])[],
-  opts: { readonly asOf?: string } = {},
+  opts: { readonly asOf?: string; readonly projects?: Readonly<Record<string, ProjectMeta>> } = {},
 ): Snapshot {
   const records = groups.flat().slice().sort(compareRecords);
   if (records.length === 0 && opts.asOf === undefined) {
     throw new SnapshotBuildError('cannot assemble an empty snapshot without an explicit asOf');
   }
   const asOf = opts.asOf ?? records[records.length - 1]!.date;
-  return { asOf, records };
+  // The registry is derived from the record keys; `opts.projects` supplies alias labels (ingest).
+  const projects = opts.projects ?? deriveRegistry(records);
+  return { asOf, records, projects };
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -107,6 +112,20 @@ export function validateSnapshot(
   });
   if (unpriceable.size > 0) {
     problems.push(`unpriceable model(s) — no rate band covers: ${[...unpriceable].sort().join(', ')}`);
+  }
+
+  // Registry consistency: every record's project key must resolve, and reserved sentinels must keep
+  // their fixed kind (so a panel can trust `projects[key].kind` to place repo/tool/unattributed rows).
+  const missing = new Set<string>();
+  for (const r of snap.records) if (!(r.project in snap.projects)) missing.add(r.project);
+  if (missing.size > 0) {
+    problems.push(`record project key(s) absent from the registry: ${[...missing].sort().join(', ')}`);
+  }
+  for (const [key, meta] of Object.entries(RESERVED_PROJECTS)) {
+    const got = snap.projects[key];
+    if (got && got.kind !== meta.kind) {
+      problems.push(`reserved sentinel ${key} registered with kind "${got.kind}" (must be "${meta.kind}")`);
+    }
   }
   return problems;
 }

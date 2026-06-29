@@ -1,4 +1,6 @@
 import type { Source, Snapshot, UsageRecord } from './types';
+import { assembleSnapshot } from './buildSnapshot';
+import { UNATTRIBUTED, CODEX_PROJECT, OPENCLAW_PROJECT } from './projects';
 
 const ASOF = '2026-06-27';
 const DAYS = 40; // ≥30 distinct days
@@ -9,6 +11,19 @@ const SOURCE_MODELS: ReadonlyArray<readonly [Source, readonly string[]]> = [
   ['codex', ['gpt-5.5', 'gpt-5.4']],
   ['openclaw', ['claude-sonnet-4-6']],
 ];
+
+/**
+ * Fake repo project keys (git-toplevel form) the synthetic CLAUDE work is attributed to — gives the
+ * contribution heatmap a real project × time grid. Codex/OpenClaw carry their tool sentinels, and a
+ * minority of claude records fall to `__unattributed__` (the home/unresolved bucket). ≥3 repos +
+ * Unattributed + the 2 tool rows satisfy `project-richness`; the unattributed share stays ≤25%.
+ */
+const REPO_PROJECTS = [
+  '/repo/family-tree-toolkit',
+  '/repo/marin-civic-graph',
+  '/repo/yard-ops',
+  '/repo/agent-observatory',
+] as const;
 
 /** mulberry32 — tiny seeded PRNG; deterministic, no Math.random. */
 function mulberry32(seed: number): () => number {
@@ -28,6 +43,15 @@ function isoMinusDays(iso: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Deterministic project key for a record by source: claude → a repo (or ~18% Unattributed),
+ * codex/openclaw → their reserved tool sentinels. */
+function projectFor(source: Source, rng: () => number): string {
+  if (source === 'codex') return CODEX_PROJECT;
+  if (source === 'openclaw') return OPENCLAW_PROJECT;
+  if (rng() < 0.18) return UNATTRIBUTED;
+  return REPO_PROJECTS[Math.floor(rng() * REPO_PROJECTS.length)]!;
+}
+
 export function generateSnapshot(): Snapshot {
   const rng = mulberry32(20260627);
   const records: UsageRecord[] = [];
@@ -41,9 +65,11 @@ export function generateSnapshot(): Snapshot {
         // a stable baseline; other cells are sampled, creating asymmetric filter outputs.
         const alwaysOn = source === 'claude' && m === 0;
         if (!alwaysOn && rng() < 0.5) continue;
+        const project = projectFor(source, rng);
         records.push({
           source,
           date,
+          project,
           model,
           inputTokens: 50 + Math.floor(rng() * 4000),
           outputTokens: 200 + Math.floor(rng() * 30000),
@@ -55,5 +81,7 @@ export function generateSnapshot(): Snapshot {
     }
   }
 
-  return { asOf: ASOF, records };
+  // assembleSnapshot applies the canonical (date, source, project, model) sort + derives the
+  // projects registry (repos labelled by basename; sentinels from RESERVED_PROJECTS).
+  return assembleSnapshot([records], { asOf: ASOF });
 }

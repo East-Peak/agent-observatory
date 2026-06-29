@@ -1,4 +1,5 @@
 import type { Source, UsageRecord } from './types';
+import { UNATTRIBUTED, CODEX_PROJECT, OPENCLAW_PROJECT } from './projects';
 
 /** Thrown at the ccusage wire boundary when an envelope is missing/shaped wrong. */
 export class CcusageDecodeError extends Error {
@@ -60,6 +61,9 @@ export function decodeClaudeDaily(env: unknown): UsageRecord[] {
       return {
         source: 'claude' as const,
         date,
+        // Daily claude has no project signal (used only for the instances↔daily reconciliation,
+        // which sums tokens and ignores project); real claude attribution comes from --instances.
+        project: UNATTRIBUTED,
         model: asString(mb, 'modelName', where),
         inputTokens: asNumber(mb, 'inputTokens', where),
         outputTokens: asNumber(mb, 'outputTokens', where),
@@ -82,6 +86,7 @@ export function decodeCodexDaily(env: unknown): UsageRecord[] {
       return {
         source: 'codex' as const,
         date,
+        project: CODEX_PROJECT,
         model,
         inputTokens: asNumber(m, 'inputTokens', where),
         outputTokens: asNumber(m, 'outputTokens', where),
@@ -109,6 +114,7 @@ export function decodeOpenclawDaily(env: unknown): UsageRecord[] {
     return {
       source: 'openclaw' as const,
       date,
+      project: OPENCLAW_PROJECT,
       model,
       inputTokens: asNumber(day, 'inputTokens', `openclaw ${date}`),
       outputTokens: asNumber(day, 'outputTokens', `openclaw ${date}`),

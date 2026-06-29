@@ -8,11 +8,13 @@ import {
   OPENCLAW_ALL_MARKER,
   OPENCLAW_DEFAULT_MODEL,
 } from '@/domain/buildSnapshot';
+import { UNATTRIBUTED, CODEX_PROJECT } from '@/domain/projects';
 import type { UsageRecord } from '@/domain/types';
 
 const rec = (over: Partial<UsageRecord>): UsageRecord => ({
   source: 'claude',
   date: '2026-06-01',
+  project: UNATTRIBUTED,
   model: 'claude-opus-4-8',
   inputTokens: 10,
   outputTokens: 20,
@@ -93,7 +95,27 @@ describe('assembleSnapshot', () => {
 
   it('allows an empty snapshot when asOf is explicit', () => {
     const snap = assembleSnapshot([], { asOf: '2026-06-29' });
-    expect(snap).toEqual({ asOf: '2026-06-29', records: [] });
+    expect(snap).toEqual({ asOf: '2026-06-29', records: [], projects: {} });
+  });
+
+  it('sorts by date, source, project, then model (project enters the canonical order)', () => {
+    const snap = assembleSnapshot([
+      [
+        rec({ date: '2026-06-01', source: 'claude', project: '/r/zeta', model: 'claude-opus-4-8' }),
+        rec({ date: '2026-06-01', source: 'claude', project: '/r/alpha', model: 'claude-opus-4-8' }),
+      ],
+    ]);
+    expect(snap.records.map((r) => r.project)).toEqual(['/r/alpha', '/r/zeta']);
+  });
+
+  it('derives a projects registry covering every record key', () => {
+    const snap = assembleSnapshot([
+      [rec({ project: '/r/yard-ops' }), rec({ source: 'codex', project: CODEX_PROJECT })],
+    ]);
+    expect(snap.projects).toEqual({
+      '/r/yard-ops': { kind: 'repo', label: 'yard-ops' },
+      [CODEX_PROJECT]: { kind: 'tool', label: 'Codex' },
+    });
   });
 });
 
@@ -118,7 +140,11 @@ describe('validateSnapshot', () => {
   it('flags a known model whose rate band does not cover the record date (band coverage, not just key)', () => {
     // claude-opus-4-8 is priceable only from 2026-06-01 onward in this predicate.
     const dateAware = (model: string, date: string) => model === 'claude-opus-4-8' && date >= '2026-06-01';
-    const snap = { asOf: '2026-06-29', records: [rec({ model: 'claude-opus-4-8', date: '2026-05-01' })] };
+    const snap = {
+      asOf: '2026-06-29',
+      records: [rec({ model: 'claude-opus-4-8', date: '2026-05-01' })],
+      projects: { [UNATTRIBUTED]: { kind: 'unattributed' as const, label: 'Unattributed' } },
+    };
     expect(validateSnapshot(snap, dateAware).join(' ')).toMatch(/unpriceable/);
   });
 
@@ -128,12 +154,30 @@ describe('validateSnapshot', () => {
   });
 
   it('flags a record dated after asOf', () => {
-    const snap = { asOf: '2026-06-01', records: [rec({ date: '2026-06-05' })] };
+    const snap = {
+      asOf: '2026-06-01',
+      records: [rec({ date: '2026-06-05' })],
+      projects: { [UNATTRIBUTED]: { kind: 'unattributed' as const, label: 'Unattributed' } },
+    };
     expect(validateSnapshot(snap, priceable).join(' ')).toMatch(/after asOf/);
   });
 
   it('flags a zero-record snapshot', () => {
-    expect(validateSnapshot({ asOf: '2026-06-29', records: [] }, priceable).join(' ')).toMatch(/zero records/);
+    expect(validateSnapshot({ asOf: '2026-06-29', records: [], projects: {} }, priceable).join(' ')).toMatch(/zero records/);
+  });
+
+  it('flags a record whose project key is absent from the registry', () => {
+    const snap = { asOf: '2026-06-29', records: [rec({ model: 'claude-opus-4-8', project: '/r/missing' })], projects: {} };
+    expect(validateSnapshot(snap, priceable).join(' ')).toMatch(/project/i);
+  });
+
+  it('flags a reserved sentinel registered with the wrong kind', () => {
+    const snap = {
+      asOf: '2026-06-29',
+      records: [rec({ model: 'claude-opus-4-8', project: UNATTRIBUTED })],
+      projects: { [UNATTRIBUTED]: { kind: 'repo' as const, label: 'Unattributed' } },
+    };
+    expect(validateSnapshot(snap, priceable).join(' ')).toMatch(/sentinel|kind/i);
   });
 });
 
