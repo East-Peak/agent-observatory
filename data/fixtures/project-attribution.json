@@ -1,0 +1,85 @@
+{
+  "note": "FROZEN contract for the PURE resolveProject(encodedDir, {knownRoots, aliases}). The Claude `~/.claude/projects/<encoded-cwd>` dir name maps every `/` and `.` to `-` and preserves literal hyphens, so it is NOT reversible (a sibling repo `yard-ops-extra` and a nested dir `yard-ops/extra` encode identically). Resolution is therefore a forward, segment-boundary longest-prefix match: encode each knownRoot the same way; an instance dir matches a root if it equals it or continues it at a `-` boundary; the longest match wins; 0 matches -> __unattributed__ (fail closed). `aliases` map a worktree/old-name absolute path to its canonical git-toplevel root. Pins LABEL correctness (which token reconciliation cannot). Cases authored 2026-06-29 (Phase 0-B); encodings verified against the real ~/.claude/projects scheme.",
+  "cases": [
+    {
+      "name": "exact root cwd -> that repo",
+      "encodedDir": "-Users-dev-projects-marin-civic-graph",
+      "knownRoots": [
+        "/Users/dev/projects/yard-ops",
+        "/Users/dev/projects/yard-ops-extra",
+        "/Users/dev/projects/marin-civic-graph"
+      ],
+      "aliases": {},
+      "expected": { "kind": "repo", "key": "/Users/dev/projects/marin-civic-graph", "label": "marin-civic-graph" }
+    },
+    {
+      "name": "nested cwd under a repo -> the enclosing repo",
+      "encodedDir": "-Users-dev-projects-marin-civic-graph-src-app-routes",
+      "knownRoots": [
+        "/Users/dev/projects/yard-ops",
+        "/Users/dev/projects/marin-civic-graph"
+      ],
+      "aliases": {},
+      "expected": { "kind": "repo", "key": "/Users/dev/projects/marin-civic-graph", "label": "marin-civic-graph" }
+    },
+    {
+      "name": "sibling-prefix: a run IN yard-ops resolves to yard-ops, not yard-ops-extra",
+      "encodedDir": "-Users-dev-projects-yard-ops",
+      "knownRoots": [
+        "/Users/dev/projects/yard-ops",
+        "/Users/dev/projects/yard-ops-extra"
+      ],
+      "aliases": {},
+      "expected": { "kind": "repo", "key": "/Users/dev/projects/yard-ops", "label": "yard-ops" }
+    },
+    {
+      "name": "sibling-prefix: a run IN yard-ops-extra resolves to yard-ops-extra (longest match wins, not yard-ops)",
+      "encodedDir": "-Users-dev-projects-yard-ops-extra",
+      "knownRoots": [
+        "/Users/dev/projects/yard-ops",
+        "/Users/dev/projects/yard-ops-extra"
+      ],
+      "aliases": {},
+      "expected": { "kind": "repo", "key": "/Users/dev/projects/yard-ops-extra", "label": "yard-ops-extra" }
+    },
+    {
+      "name": "nested under yard-ops with a sibling yard-ops-extra present -> still the enclosing yard-ops",
+      "encodedDir": "-Users-dev-projects-yard-ops-src-index",
+      "knownRoots": [
+        "/Users/dev/projects/yard-ops",
+        "/Users/dev/projects/yard-ops-extra"
+      ],
+      "aliases": {},
+      "expected": { "kind": "repo", "key": "/Users/dev/projects/yard-ops", "label": "yard-ops" }
+    },
+    {
+      "name": "alias hit: a worktree cwd resolves to its canonical root's key+label",
+      "encodedDir": "-Users-dev-wt-yard-ops-feature",
+      "knownRoots": [
+        "/Users/dev/projects/yard-ops",
+        "/Users/dev/projects/marin-civic-graph"
+      ],
+      "aliases": { "/Users/dev/wt/yard-ops-feature": "/Users/dev/projects/yard-ops" },
+      "expected": { "kind": "repo", "key": "/Users/dev/projects/yard-ops", "label": "yard-ops" }
+    },
+    {
+      "name": "unresolvable: a cwd under no known root -> __unattributed__ (fail closed)",
+      "encodedDir": "-Users-dev-Downloads-scratch",
+      "knownRoots": [
+        "/Users/dev/projects/yard-ops",
+        "/Users/dev/projects/marin-civic-graph"
+      ],
+      "aliases": {},
+      "expected": { "kind": "unattributed", "key": "__unattributed__", "label": "Unattributed" }
+    },
+    {
+      "name": "home-dir catch-all is NOT a root -> a bare home cwd is unattributed (the cwd-as-project unsoundness)",
+      "encodedDir": "-Users-dev",
+      "knownRoots": [
+        "/Users/dev/projects/yard-ops"
+      ],
+      "aliases": {},
+      "expected": { "kind": "unattributed", "key": "__unattributed__", "label": "Unattributed" }
+    }
+  ]
+}
