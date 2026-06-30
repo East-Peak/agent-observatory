@@ -1,6 +1,6 @@
 {
-  "note": "Live/non-live registry for Observatory panels. The autonomous /goal loop EDITS this file (it is NOT frozen) to promote a panel to \"live\" — but only after that panel's *.demo.test.tsx (calling describeLivePanel) plus the panel-golden + pipeline-coupling gates pass. ZERO panels are live at the verifier baseline (Codex r6#3), so every panel gate passes vacuously here. verify:complete additionally requires all four required panels live.",
-  "required": ["spendOverview", "bySourceModel", "cacheEfficiency", "activityFeed"],
+  "note": "Live/non-live registry for Observatory panels. The autonomous /goal loop EDITS this file (it is NOT frozen) to promote a panel to \"live\" — but only after that panel's *.demo.test.tsx (calling describeLivePanel) plus the panel-golden + pipeline-coupling gates pass. At the v2 baseline the four v1 panels stay live; the loop builds contributionHeatmap + byProject and adds them here (status \"live\", route per the frozen oracle REGISTRY). `required` must equal the frozen 6-panel REQUIRED_PANELS in verify.mjs (the loop cannot shrink it); verify:complete additionally requires all six live.",
+  "required": ["spendOverview", "bySourceModel", "cacheEfficiency", "activityFeed", "contributionHeatmap", "byProject"],
   "panels": {
     "spendOverview": { "status": "live", "dir": "spend-overview", "route": "/" },
     "bySourceModel": { "status": "live", "dir": "by-source-model", "route": "/by-source-model" },

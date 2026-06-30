@@ -3,7 +3,7 @@
 //
 // WHY: the /goal evaluator only reads the transcript. Rather than ask the loop to
 // hand-assemble separate proofs, this runs `verify:complete` itself and prints ONE
-// coherent block. The `OBSERVATORY-COMPLETE <HEAD_SHA>` token is emitted ONLY when the
+// coherent block. The `OBSERVATORY-V2-COMPLETE <HEAD_SHA>` token is emitted ONLY when the
 // verifier exits 0 — it is bound to the real HEAD commit, so an honest run cannot declare
 // done on a failing tree.
 //
@@ -77,7 +77,7 @@ const lines = [
   `HEAD_SHA: ${headSha}`,
   `EXPECTED_BASELINE_SHA: ${expectedSha}`,
   `verify:complete: ${pass ? 'PASS' : 'FAIL'}`,
-  pass ? `OBSERVATORY-COMPLETE ${headSha}` : 'NOT-COMPLETE (verify:complete did not pass)',
+  pass ? `OBSERVATORY-V2-COMPLETE ${headSha}` : 'NOT-COMPLETE (verify:complete did not pass)',
   '===CERTIFY:COMPLETE:END===',
 ];
 emit(lines.join('\n'));

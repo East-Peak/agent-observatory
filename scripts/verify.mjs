@@ -37,7 +37,9 @@ import { randomBytes } from 'node:crypto';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const LOG_DIR = join(ROOT, '.verify-logs');
-const BASELINE_TAG = 'observatory-verifier-baseline';
+// v2 baseline: the per-project re-baseline. The v1 tag stays as v1's record; this tag is cut in
+// Phase 0-F (so baseline-tag / verifier-integrity are expected red until then).
+const BASELINE_TAG = 'observatory-v2-verifier-baseline';
 
 const argv = process.argv.slice(2);
 const COMPLETE = argv.includes('--complete');
@@ -762,6 +764,152 @@ function ingestGates() {
   runCheck('ingest-argv', 'node scripts/ingest.mjs --argv-selfcheck', 120000);
 }
 
+// ---- v2 project gates (all pass/fail — NEVER PENDING; v2 completion must not tolerate a skip) ----
+
+const PROJECT_GATES = [
+  'project-attribution-contract',
+  'ccusage-instances-decoder-contract',
+  'project-ingest-contract',
+  'project-richness',
+];
+
+/** Compare two `{ key: {kind,label} }` registries order-independently (deriveRegistry inserts in
+ * record-encounter order, so a raw JSON.stringify would spuriously differ). */
+function registryEquals(a, b) {
+  const ak = Object.keys(a).sort();
+  const bk = Object.keys(b).sort();
+  if (ak.join(' ') !== bk.join(' ')) return false;
+  return ak.every((k) => a[k]?.kind === b[k]?.kind && a[k]?.label === b[k]?.label);
+}
+
+// project-attribution-contract: run the PURE resolveProject over the frozen attribution fixture and
+// assert {kind,key,label} exactly — pins LABEL correctness, which token reconciliation cannot see.
+function projectAttributionContractCheck() {
+  const path = join(ROOT, 'data/fixtures/project-attribution.json');
+  const fixture = readJson(path);
+  if (!fixture || !Array.isArray(fixture.cases) || fixture.cases.length === 0) {
+    record('project-attribution-contract', false, 'project-attribution.json missing or has no cases');
+    return;
+  }
+  const src = `
+import { resolveProject } from ${q(join(ROOT, 'src/domain/projectIdentity.ts'))};
+import { readFileSync } from 'node:fs';
+const cases = JSON.parse(readFileSync(${q(path)}, 'utf8')).cases;
+process.stdout.write(JSON.stringify(cases.map((c) => resolveProject(c.encodedDir, { knownRoots: c.knownRoots, aliases: c.aliases }))));
+`;
+  const res = runEmitter('project-attribution-contract', src);
+  if (!res.ok) {
+    record('project-attribution-contract', false, 'resolver emitter failed — see .verify-logs/project-attribution-contract.log');
+    return;
+  }
+  const fails = [];
+  fixture.cases.forEach((c, i) => {
+    const got = res.data[i];
+    const e = c.expected;
+    if (!got || got.kind !== e.kind || got.key !== e.key || got.label !== e.label) {
+      fails.push(`${c.name}: ${JSON.stringify(got)} != ${JSON.stringify(e)}`);
+    }
+  });
+  record('project-attribution-contract', fails.length === 0, fails.slice(0, 3).join('; ') || `${fixture.cases.length} attribution cases`);
+}
+
+// ccusage-instances-decoder-contract: decode the committed --instances fixture through the REAL
+// decoder + resolver and check every canonical field (incl. project) against the frozen expected
+// merge — proves decodeClaudeInstances + resolveProject attribute + merge correctly, not just daily.
+function instancesDecoderContractCheck() {
+  const path = join(ROOT, 'data/fixtures/decoder/claude-instances.json');
+  const fixture = readJson(path);
+  const contract = fixture && fixture._contract;
+  if (!contract || !Array.isArray(contract.expectedRecords) || !Array.isArray(contract.knownRoots)) {
+    record('ccusage-instances-decoder-contract', false, 'claude-instances.json _contract (knownRoots/expectedRecords) missing');
+    return;
+  }
+  const src = `
+import { decodeClaudeInstances } from ${q(join(ROOT, 'src/domain/decode.ts'))};
+import { resolveProject } from ${q(join(ROOT, 'src/domain/projectIdentity.ts'))};
+import { readFileSync } from 'node:fs';
+const fx = JSON.parse(readFileSync(${q(path)}, 'utf8'));
+const roots = fx._contract.knownRoots;
+const resolveFn = (d) => resolveProject(d, { knownRoots: roots }).key;
+process.stdout.write(JSON.stringify(decodeClaudeInstances(fx, resolveFn)));
+`;
+  const res = runEmitter('ccusage-instances-decoder-contract', src);
+  if (!res.ok) {
+    record('ccusage-instances-decoder-contract', false, 'instances decoder emitter failed — see .verify-logs/ccusage-instances-decoder-contract.log');
+    return;
+  }
+  const fails = [];
+  compareRecords('instances', res.data, contract.expectedRecords, fails); // RECORD_FIELDS includes project
+  record('ccusage-instances-decoder-contract', fails.length === 0, fails.slice(0, 3).join('; ') || `${contract.expectedRecords.length} instance records decoded field-by-field`);
+}
+
+// project-ingest-contract: drive the ingest's OFFLINE fixture path (committed --instances fixture +
+// synthetic frozen roots) and assert the produced snapshot attributes projects EXACTLY — the registry,
+// that claude work reaches the repo projects (a degenerate all-__unattributed__ resolver FAILs here),
+// and that every record's project is registered. Verifier-OWNED (the assertion lives here, not in a
+// loop-editable ingest self-report) + the daily reconciliation already ran (blocking) inside ingest.
+function projectIngestContractCheck() {
+  const outPath = join(LOG_DIR, 'project-ingest-snapshot.json');
+  try {
+    execSync(`node scripts/ingest.mjs --from-fixture --out ${q(outPath)}`, { cwd: ROOT, stdio: 'pipe', timeout: 120000 });
+  } catch (e) {
+    writeFileSync(join(LOG_DIR, 'project-ingest-contract.log'), `${e.stdout ?? ''}\n${e.stderr ?? ''}`);
+    record('project-ingest-contract', false, 'fixture ingest failed — see .verify-logs/project-ingest-contract.log');
+    return;
+  }
+  const snap = readJson(outPath);
+  if (!snap || !snap.projects || !Array.isArray(snap.records)) {
+    record('project-ingest-contract', false, 'ingest produced no usable snapshot');
+    return;
+  }
+  const expectedRegistry = {
+    '/Users/dev/projects/yard-ops': { kind: 'repo', label: 'yard-ops' },
+    '/Users/dev/projects/marin-civic-graph': { kind: 'repo', label: 'marin-civic-graph' },
+    __unattributed__: { kind: 'unattributed', label: 'Unattributed' },
+    __codex__: { kind: 'tool', label: 'Codex' },
+    __openclaw__: { kind: 'tool', label: 'OpenClaw' },
+  };
+  const fails = [];
+  if (!registryEquals(snap.projects, expectedRegistry)) {
+    fails.push(`projects registry ${JSON.stringify(snap.projects)} != expected`);
+  }
+  const claudeProjects = new Set(snap.records.filter((r) => r.source === 'claude').map((r) => r.project));
+  for (const k of ['/Users/dev/projects/yard-ops', '/Users/dev/projects/marin-civic-graph']) {
+    if (!claudeProjects.has(k)) fails.push(`claude never attributes to ${k} (degenerate resolver / ingest bypass?)`);
+  }
+  for (const r of snap.records) if (!(r.project in snap.projects)) fails.push(`record project ${r.project} absent from registry`);
+  record('project-ingest-contract', fails.length === 0, fails.slice(0, 3).join('; ') || 'ingest attributes projects + registry exactly');
+}
+
+// project-richness: the FROZEN synthetic snapshot must be a meaningful project surface — >= 3 repo
+// projects + the Unattributed + both tool sentinels, with a bounded Unattributed share — so the panel
+// oracle is never frozen against a degenerate fixture.
+function projectRichnessCheck() {
+  const snap = readJson(join(ROOT, 'data/fixtures/synthetic-snapshot.json'));
+  if (!snap || !snap.projects || !Array.isArray(snap.records)) {
+    record('project-richness', false, 'synthetic-snapshot.json missing projects/records');
+    return;
+  }
+  const fails = [];
+  const repoCount = Object.values(snap.projects).filter((m) => m.kind === 'repo').length;
+  if (repoCount < 3) fails.push(`only ${repoCount} repo project(s) (need >= 3)`);
+  for (const sentinel of ['__unattributed__', '__codex__', '__openclaw__']) {
+    if (!snap.projects[sentinel]) fails.push(`missing reserved project ${sentinel}`);
+  }
+  const tok = (r) => r.inputTokens + r.outputTokens + r.cacheCreationTokens + r.cacheReadTokens + r.reasoningTokens;
+  const gridKind = (p) => snap.projects[p]?.kind === 'repo' || snap.projects[p]?.kind === 'unattributed';
+  const grid = snap.records.filter((r) => gridKind(r.project));
+  const gridTokens = grid.reduce((s, r) => s + tok(r), 0);
+  const unattrTokens = grid.filter((r) => r.project === '__unattributed__').reduce((s, r) => s + tok(r), 0);
+  const share = gridTokens > 0 ? unattrTokens / gridTokens : 0;
+  if (share > 0.25) fails.push(`Unattributed grid share ${(share * 100).toFixed(1)}% > 25%`);
+  record(
+    'project-richness',
+    fails.length === 0,
+    fails.slice(0, 3).join('; ') || `${repoCount} repos + sentinels · Unattributed ${(share * 100).toFixed(1)}% of grid`,
+  );
+}
+
 // ---- DEMO-READY: panel gates (over LIVE panels only — zero at baseline => vacuous) -------
 
 function panelsConfig() {
@@ -772,7 +920,14 @@ function panelsConfig() {
 // cannot be shrunk by the loop. It is NOT read from config/panels.json, which the loop edits —
 // otherwise the loop could set config.required = ["spendOverview"] and certify "done" with one
 // panel (Codex impl-review blocker #1).
-const REQUIRED_PANELS = ['spendOverview', 'bySourceModel', 'cacheEfficiency', 'activityFeed'];
+const REQUIRED_PANELS = [
+  'spendOverview',
+  'bySourceModel',
+  'cacheEfficiency',
+  'activityFeed',
+  'contributionHeatmap',
+  'byProject',
+];
 const panelsRequired = () => REQUIRED_PANELS;
 // FROZEN panel key -> { its canonical route, its source dir under src/panels/ }. The frozen oracle
 // already asserts config.route == its frozen REGISTRY route; this binding lets `route-module-binding`
@@ -1129,6 +1284,11 @@ const FROZEN_FILES = [
   // The pure project resolver — load-bearing for attribution (the ingest + decodeClaudeInstances call
   // it), pinned by the frozen project-attribution.json contract. Frozen so its forward-match can't drift.
   'src/domain/projectIdentity.ts',
+  // The contribution-grid engine the panel oracle TRUSTS for bucketing + intensity binning (the subtle
+  // pure helpers — ISO-week math, per-section quantile bins), anchored by their unit tests + the 0-D
+  // goldens. Frozen so the loop can't reshape a column/bin to make a wrong heatmap pass.
+  'src/domain/buckets.ts',
+  'src/domain/intensity.ts',
   // Frozen so the loop cannot move the toolchain version pins out from under `toolchain-integrity`
   // (node_modules is gitignored, so a tampered local binary is invisible to git-clean — the gate
   // instead pins vitest/tsx/vite to these locked versions). Codex r3 blocker.
@@ -1157,6 +1317,10 @@ const FROZEN_FILES = [
   // The pure-resolver attribution contract (0-B) — frozen so the loop can't weaken the project-
   // attribution-contract gate (0-E) by editing its expectations.
   'data/fixtures/project-attribution.json',
+  // The 0-D aggregation goldens — frozen so the loop can't edit the hand-derived expected dense-grid
+  // cells / leaderboard shares the project-period + byProject contracts pin.
+  'data/fixtures/project-period-golden.json',
+  'data/fixtures/byproject-golden.json',
   // Frozen so the loop can't edit the synthetic data + its generator together and still pass
   // byte-stability (Codex impl-review major #3).
   'data/fixtures/synthetic-snapshot.json',
@@ -1236,7 +1400,11 @@ function requiredPanelsLiveCheck() {
     return;
   }
   const notLive = REQUIRED_PANELS.filter((k) => cfg.panels[k]?.status !== 'live');
-  record('required-panels-live', notLive.length === 0, notLive.length ? `not live: ${notLive.join(', ')}` : 'all 4 required panels live');
+  record(
+    'required-panels-live',
+    notLive.length === 0,
+    notLive.length ? `not live: ${notLive.join(', ')}` : `all ${REQUIRED_PANELS.length} required panels live`,
+  );
 }
 
 // ---- livelock failure history -----------------------------------------------------------
@@ -1297,6 +1465,10 @@ if (DEMO) {
   normalizationPropertyCheck();
   decoderContractCheck();
   ingestGates();
+  projectAttributionContractCheck();
+  instancesDecoderContractCheck();
+  projectIngestContractCheck();
+  projectRichnessCheck();
 
   const cfg = panelsConfig();
   const live = cfg ? livePanels(cfg) : [];
@@ -1315,7 +1487,17 @@ if (DEMO) {
   gitCheck('git-clean', () => git('status --porcelain') === '');
   gitCheck('git-author', () => git('log -1 --format=%ae') === 'stuart@eastpeak.cc');
   gitCheck('git-pushed', () => git('rev-parse HEAD') === git('rev-parse @{u}'));
-  if (COMPLETE) requiredPanelsLiveCheck();
+  if (COMPLETE) {
+    requiredPanelsLiveCheck();
+    // v2 completion must NOT tolerate a skipped/PENDING project gate (v1's PASS tolerates PENDING).
+    // The four gates never call recordPending, so this only ever fires on an unexpected non-pass.
+    const notPassing = PROJECT_GATES.filter((n) => checks.find((c) => c.name === n)?.status !== 'pass');
+    record(
+      'project-gates-non-pending',
+      notPassing.length === 0,
+      notPassing.length ? `project gate(s) not passing: ${notPassing.join(', ')}` : 'all 4 project gates pass (non-PENDING)',
+    );
+  }
 
   // Record this run's app-logic failures, then run the (frozen) livelock guard over them.
   appendFailureHistory();
