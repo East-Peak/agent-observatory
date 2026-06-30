@@ -234,11 +234,14 @@ export function aggregateByProject(records: readonly UsageRecord[], card: RateCa
     acc.totalTokens += t;
     gridTokens += t;
   }
+  // Shares are defined only when the grid has effort — an all-zero-token grid has no meaningful
+  // denominator, so the leaderboard is empty (the panel renders its empty state) rather than a wall of 0%.
+  if (gridTokens === 0) return [];
   const rows = [...by.values()].map((m) => ({
     projectKey: m.projectKey,
     costPico: m.costPico,
     totalTokens: m.totalTokens,
-    tokenShareBp: gridTokens > 0 ? Number((BigInt(m.totalTokens) * 10000n) / BigInt(gridTokens)) : 0,
+    tokenShareBp: Number((BigInt(m.totalTokens) * 10000n) / BigInt(gridTokens)),
   }));
   return rows.sort((a, b) => {
     const au = a.projectKey === UNATTRIBUTED;

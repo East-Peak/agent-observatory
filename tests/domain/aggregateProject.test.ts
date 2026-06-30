@@ -87,4 +87,9 @@ describe('aggregateByProject', () => {
   it('returns an empty leaderboard when the grid is empty (tool-only scope)', () => {
     expect(aggregateByProject([rec({ source: 'codex', project: CODEX_PROJECT, inputTokens: 9 })], card)).toEqual([]);
   });
+
+  it('returns an empty leaderboard when grid records exist but carry zero tokens (no denominator)', () => {
+    // Shares are defined only when the grid has effort; an all-zero-token grid yields no rows.
+    expect(aggregateByProject([rec({ project: '/r/yard-ops', inputTokens: 0 })], card)).toEqual([]);
+  });
 });

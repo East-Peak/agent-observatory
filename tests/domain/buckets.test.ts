@@ -18,6 +18,12 @@ describe('bucketOf', () => {
     expect(bucketOf('2026-05-25', 'week')).toBe('2026-05-25'); // next Monday -> itself
     expect(bucketOf('2026-06-01', 'week')).toBe('2026-06-01'); // crosses month boundary cleanly
   });
+
+  it('week math holds across year boundaries and for pre-1970 (negative) ordinals', () => {
+    expect(bucketOf('2021-01-01', 'week')).toBe('2020-12-28'); // Fri, week spans Dec -> Jan
+    expect(bucketOf('1969-12-31', 'week')).toBe('1969-12-29'); // Wed, negative ordinal
+    expect(bucketOf('2026-06-30', 'week')).toBe('2026-06-29'); // last day of June, week runs into July
+  });
 });
 
 describe('bucketsInWindow', () => {
