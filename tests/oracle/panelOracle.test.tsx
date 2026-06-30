@@ -76,7 +76,7 @@ import { normalizeCost, type RateBand, type RateCard } from '@/domain/normalizeC
 // it (as it trusts normalizeCost) — the panel feeds it the same scale, so dom-vs-recompute verifies the
 // panel computed the right per-section cell values + applied the bins, not the (frozen) quantile itself.
 import { quantileScale } from '@/domain/intensity';
-import type { UsageRecord } from '@/domain/types';
+import type { Snapshot, UsageRecord } from '@/domain/types';
 import type { RangeKey } from '@/domain/dateRange';
 import type { SourceKey } from '@/domain/sources';
 import type { Scope } from '@/app/ScopeProvider';
@@ -1366,6 +1366,138 @@ function runHeatmapModeOracle(live: LivePanel[]): CategoryResult & { applicable:
   return { ok: fails.length === 0, fails: fails.slice(0, 16), panelsChecked: ['contributionHeatmap'], applicable: true };
 }
 
+// The (source, model) breakdown a focused cell must reveal: the cell's own records, grouped by
+// source|model, summed in the active metric. Independent of the panel.
+function recomputeCellBreakdown(
+  records: readonly UsageRecord[],
+  card: RateCard,
+  asOf: string,
+  range: RangeKey,
+  source: SourceKey,
+  bucket: Bucket,
+  metric: Metric,
+  cellProject: string,
+  cellBucket: string,
+): Cell[] {
+  const scoped = scopeFilter(records, source);
+  const cur = currentWindow(range, asOf, earliestOf(scoped, asOf));
+  const cellRecs = scoped.filter(
+    (r) => r.project === cellProject && inWindow(r.date, cur) && bucketOfInline(r.date, bucket) === cellBucket,
+  );
+  const by = new Map<string, bigint>();
+  for (const r of cellRecs) {
+    const k = `${r.source}|${r.model}`;
+    by.set(k, (by.get(k) ?? 0n) + (metric === 'tokens' ? BigInt(tokenTotal(r)) : normalizeCost(r, card)));
+  }
+  return [...by.entries()].map(([key, v]) => ({ carrier: 'row' as Carrier, key, value: v.toString(), kind: metric === 'tokens' ? 'tokens' : 'cost' }));
+}
+
+// interaction oracle: focus/expand a nonzero REPO cell AND a nonzero TOOL cell, in Tokens AND $, and
+// assert the revealed source|model breakdown is recomputed from the cell's own records (so the panel
+// can neither omit the breakdown nor hardcode it).
+function runHeatmapInteractionOracle(live: LivePanel[]): CategoryResult & { applicable: boolean } {
+  const hm = live.find((p) => p.key === 'contributionHeatmap');
+  if (!hm) return { ok: true, fails: [], panelsChecked: [], applicable: false };
+  const fails: string[] = [];
+  const spec = resolveSpec(hm, fails);
+  if (!spec) return { ok: false, fails, panelsChecked: ['contributionHeatmap'], applicable: true };
+  const modes = [
+    { bucket: 'day', bl: 'Daily', metric: 'tokens', ml: 'Tokens' },
+    { bucket: 'day', bl: 'Daily', metric: 'cost', ml: '$' },
+  ] as const;
+  for (const m of modes) {
+    for (const wantSection of ['project', 'tool'] as const) {
+      try {
+        if (!renderHeatmapMode(spec, { label: 'all/all', range: 'all', source: 'all' }, m, RATE_CARD, fails)) {
+          cleanup();
+          continue;
+        }
+        const root = requirePanelRoot('contributionHeatmap');
+        const cell = within(root)
+          .queryAllByTestId('heatmap-cell')
+          .find((c) => c.getAttribute('data-cell-section') === wantSection && isIntString(attr(c, 'data-cell-value')) && BigInt(attr(c, 'data-cell-value')) !== 0n);
+        if (!cell) {
+          fails.push(`heatmap interaction [${m.ml}/${wantSection}]: no nonzero ${wantSection} cell to focus`);
+          cleanup();
+          continue;
+        }
+        const cellProject = attr(cell, 'data-cell-row');
+        const cellBucket = attr(cell, 'data-cell-bucket');
+        fireEvent.click(cell);
+        const liveRoot = requirePanelRoot('contributionHeatmap');
+        const got: Cell[] = within(liveRoot)
+          .queryAllByTestId('breakdown-row')
+          .map((n) => {
+            const key = attr(n, 'data-row-key');
+            const value = attr(n, 'data-row-value');
+            const kind = attr(n, 'data-value-kind');
+            assertVisibleConsistent('row', key, kind, value, n);
+            return { carrier: 'row', key, value, kind };
+          });
+        const expected = recomputeCellBreakdown(RECORDS, RATE_CARD, ASOF, 'all', 'all', m.bucket, m.metric, cellProject, cellBucket);
+        if (expected.length === 0) fails.push(`heatmap interaction [${m.ml}/${wantSection}]: focused a cell with no records`);
+        compareCells(`heatmap interaction [${m.ml}/${wantSection}] ${cellProject}|${cellBucket}`, expected, got, fails);
+      } catch (e) {
+        fails.push(`heatmap interaction [${m.ml}/${wantSection}]: threw ${String((e as Error)?.message ?? e)}`);
+      } finally {
+        cleanup();
+      }
+    }
+  }
+  return { ok: fails.length === 0, fails: fails.slice(0, 16), panelsChecked: ['contributionHeatmap'], applicable: true };
+}
+
+// token-vector perturbation: bump ONE record's tokens by a known delta and assert that EXACTLY its
+// (project, bucket) cell value moves by the delta — every other cell value is unchanged. Proves the
+// token grid is computed from the data (not hardcoded) and attributed to the right cell. (Intensity
+// bins legitimately re-quantile, so only VALUES are compared here; bins are pinned by the mode oracle.)
+function runHeatmapPerturbationOracle(live: LivePanel[]): CategoryResult & { applicable: boolean } {
+  const hm = live.find((p) => p.key === 'contributionHeatmap');
+  if (!hm) return { ok: true, fails: [], panelsChecked: [], applicable: false };
+  const fails: string[] = [];
+  const spec = resolveSpec(hm, fails);
+  if (!spec) return { ok: false, fails, panelsChecked: ['contributionHeatmap'], applicable: true };
+  const DELTA = 73_137;
+  const target = RECORDS.find((r) => sectionOf(r.project) === 'project' && r.date <= ASOF);
+  if (!target) return { ok: true, fails: [], panelsChecked: ['contributionHeatmap'], applicable: true };
+  const perturbedRecords = RECORDS.map((r) => (r === target ? { ...r, inputTokens: r.inputTokens + DELTA } : r));
+  // SNAPSHOT carries `projects` at runtime (the cast at the top narrows it away); re-attach it so the
+  // perturbed snapshot is a full, valid Snapshot the panel can render.
+  const SNAP_FULL = SNAPSHOT as unknown as Snapshot;
+  const dsFor = (records: readonly UsageRecord[]): DataSource => ({
+    getSnapshot: () => ({ ...SNAP_FULL, records: records as UsageRecord[] }),
+    getRateCard: () => RATE_CARD,
+  });
+  const targetKey = `${target.project}|${bucketOfInline(target.date, 'day')}`;
+  const valuesOf = (ds: DataSource): Map<string, string> => {
+    renderRoute(spec.route, { range: 'all', source: 'all' }, ds); // default Daily x Tokens
+    const cells = readDomCells(requirePanelRoot('contributionHeatmap')).filter((c) => c.carrier === 'heatmap');
+    cleanup();
+    return new Map(cells.map((c) => [c.key, c.value]));
+  };
+  try {
+    const base = valuesOf(dsFor(RECORDS));
+    const pert = valuesOf(dsFor(perturbedRecords));
+    if (base.size !== pert.size) fails.push(`heatmap perturbation: cell count changed (${base.size} -> ${pert.size})`);
+    for (const [key, bv] of base) {
+      const pv = pert.get(key);
+      if (pv === undefined) {
+        fails.push(`heatmap perturbation: cell ${key} vanished`);
+      } else if (key === targetKey) {
+        if (!isIntString(bv) || !isIntString(pv) || BigInt(pv) !== BigInt(bv) + BigInt(DELTA)) {
+          fails.push(`heatmap perturbation: target ${key} ${pv} != ${bv}+${DELTA}`);
+        }
+      } else if (pv !== bv) {
+        fails.push(`heatmap perturbation: unrelated cell ${key} moved (${bv} -> ${pv})`);
+      }
+    }
+  } catch (e) {
+    fails.push(`heatmap perturbation: threw ${String((e as Error)?.message ?? e)}`);
+    cleanup();
+  }
+  return { ok: fails.length === 0, fails: fails.slice(0, 16), panelsChecked: ['contributionHeatmap'], applicable: true };
+}
+
 // ---- result file ------------------------------------------------------------------------
 
 interface OracleResult {
@@ -1378,6 +1510,8 @@ interface OracleResult {
   coupling: CategoryResult | null;
   scopeMatrix: (CategoryResult & { applicable: boolean }) | null;
   heatmapModes: (CategoryResult & { applicable: boolean }) | null;
+  heatmapInteraction: (CategoryResult & { applicable: boolean }) | null;
+  heatmapPerturbation: (CategoryResult & { applicable: boolean }) | null;
 }
 const RESULT: OracleResult = {
   nonce: process.env.ORACLE_RUN_NONCE ?? null,
@@ -1387,6 +1521,8 @@ const RESULT: OracleResult = {
   coupling: null,
   scopeMatrix: null,
   heatmapModes: null,
+  heatmapInteraction: null,
+  heatmapPerturbation: null,
 };
 function writeResult(): void {
   // vitest runs with cwd = repo root; verify.mjs reads this exact path back.
@@ -1420,5 +1556,15 @@ describe('frozen panel oracle (verifier-owned — the trusted panel gate)', () =
   it('heatmap-modes: contributionHeatmap matches the recompute across day/week/month x tokens/$ (+ coupling)', () => {
     RESULT.heatmapModes = runHeatmapModeOracle(LIVE);
     expect(RESULT.heatmapModes.fails).toEqual([]);
+  });
+
+  it('heatmap-interaction: focus/expand reveals the source|model breakdown recomputed from the cell', () => {
+    RESULT.heatmapInteraction = runHeatmapInteractionOracle(LIVE);
+    expect(RESULT.heatmapInteraction.fails).toEqual([]);
+  });
+
+  it('heatmap-perturbation: a token bump moves exactly its own cell by the delta, no others', () => {
+    RESULT.heatmapPerturbation = runHeatmapPerturbationOracle(LIVE);
+    expect(RESULT.heatmapPerturbation.fails).toEqual([]);
   });
 });
