@@ -1,0 +1,25 @@
+{
+  "note": "FROZEN golden for aggregateByProjectPeriod — the dense project × time grid. Hand-derived, independent of the panel: it anchors the grouping/bucketing/dense-zero logic on a simple card (m1 = 1e6 pico/input-token, so costPico = inputTokens × 1_000_000), since pricing itself is already anchored by normalization-golden. Week bucketing: 2026-05-19 (Tue) and 2026-05-20 (Wed) fall in ISO week of Monday 2026-05-18; 2026-05-25 is a Monday. The yard-ops 05-19 (10) + 05-20 (5) records MERGE into one cell (15). Every rows × buckets cell is materialized incl. zeros.",
+  "card": {
+    "version": "test-period-golden",
+    "asOf": "2026-06-27",
+    "unit": "picoUsdPerToken",
+    "rates": {
+      "m1": [{ "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "1000000", "output": "0", "cacheCreation": "0", "cacheRead": "0", "reasoning": "0" }]
+    }
+  },
+  "bucket": "week",
+  "window": { "from": "2026-05-19", "to": "2026-05-25" },
+  "rows": ["/r/yard-ops", "/r/marin"],
+  "records": [
+    { "source": "claude", "date": "2026-05-19", "project": "/r/yard-ops", "model": "m1", "inputTokens": 10, "outputTokens": 0, "cacheCreationTokens": 0, "cacheReadTokens": 0, "reasoningTokens": 0 },
+    { "source": "claude", "date": "2026-05-20", "project": "/r/yard-ops", "model": "m1", "inputTokens": 5, "outputTokens": 0, "cacheCreationTokens": 0, "cacheReadTokens": 0, "reasoningTokens": 0 },
+    { "source": "claude", "date": "2026-05-25", "project": "/r/marin", "model": "m1", "inputTokens": 100, "outputTokens": 0, "cacheCreationTokens": 0, "cacheReadTokens": 0, "reasoningTokens": 0 }
+  ],
+  "expectedCells": [
+    { "projectKey": "/r/yard-ops", "bucketId": "2026-05-18", "costPico": "15000000", "totalTokens": 15 },
+    { "projectKey": "/r/yard-ops", "bucketId": "2026-05-25", "costPico": "0", "totalTokens": 0 },
+    { "projectKey": "/r/marin", "bucketId": "2026-05-18", "costPico": "0", "totalTokens": 0 },
+    { "projectKey": "/r/marin", "bucketId": "2026-05-25", "costPico": "100000000", "totalTokens": 100 }
+  ]
+}

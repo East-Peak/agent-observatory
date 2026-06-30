@@ -1,5 +1,11 @@
 import type { Source, UsageRecord } from './types';
 import { normalizeCost, selectBand, type RateCard } from './normalizeCost';
+import { bucketsInWindow, bucketOf, type BucketKind } from './buckets';
+import { inWindow, type DateWindow } from './dateRange';
+import { UNATTRIBUTED, metaForKey } from './projects';
+
+const tokenTotal = (r: UsageRecord): number =>
+  r.inputTokens + r.outputTokens + r.cacheCreationTokens + r.cacheReadTokens + r.reasoningTokens;
 
 /** Per-day rollup: normalized cost (pico-USD BigInt) + summed token counts. */
 export interface DayTotal {
@@ -145,4 +151,100 @@ export function cacheEfficiency(
     savedPico += BigInt(r.cacheReadTokens) * (BigInt(b.input) - BigInt(b.cacheRead));
   }
   return { cacheReadTokens, cacheCreationTokens, freshInputTokens, savedPico };
+}
+
+/** One cell of the dense project × time grid: a (project, bucket) rollup. */
+export interface ProjectPeriodCell {
+  readonly projectKey: string;
+  readonly bucketId: string;
+  readonly costPico: bigint;
+  readonly totalTokens: number;
+}
+
+/**
+ * Build the DENSE project × time grid for the given rows over an inclusive window: every
+ * `rows × bucketsInWindow` cell is materialized (zeros included), summing the in-window records whose
+ * project is one of `rows` into their `(project, bucket)` cell. Records outside the window or for a
+ * project not in `rows` are ignored. Returns cells in row-major order (rows as given, buckets
+ * chronological) — point-in-time cost via the injected card. The caller chooses `rows` (and their
+ * order): the project grid passes repo+unattributed keys; the Tools strip passes the tool keys.
+ */
+export function aggregateByProjectPeriod(
+  records: readonly UsageRecord[],
+  card: RateCard,
+  bucket: BucketKind,
+  window: DateWindow,
+  rows: readonly string[],
+): ProjectPeriodCell[] {
+  const buckets = bucketsInWindow(window.from, window.to, bucket);
+  // Nested project -> bucket -> mutable cell, pre-seeded with every cartesian cell so zeros
+  // materialize. Nesting avoids any string-key separator (project keys are paths that may contain
+  // spaces), so two distinct (project, bucket) pairs can never collide.
+  const grid = new Map<string, Map<string, { costPico: bigint; totalTokens: number }>>();
+  for (const project of rows) {
+    const row = new Map<string, { costPico: bigint; totalTokens: number }>();
+    for (const bucketId of buckets) row.set(bucketId, { costPico: 0n, totalTokens: 0 });
+    grid.set(project, row);
+  }
+  for (const r of records) {
+    if (!inWindow(r.date, window)) continue;
+    const acc = grid.get(r.project)?.get(bucketOf(r.date, bucket));
+    if (!acc) continue; // project not in `rows`, or (impossible) a bucket outside the window
+    acc.costPico += normalizeCost(r, card);
+    acc.totalTokens += tokenTotal(r);
+  }
+  const out: ProjectPeriodCell[] = [];
+  for (const projectKey of rows) {
+    const row = grid.get(projectKey)!;
+    for (const bucketId of buckets) {
+      const acc = row.get(bucketId)!;
+      out.push({ projectKey, bucketId, costPico: acc.costPico, totalTokens: acc.totalTokens });
+    }
+  }
+  return out;
+}
+
+/** One leaderboard row: a project's grid total + its token share (basis points) of the grid. */
+export interface ProjectTotal {
+  readonly projectKey: string;
+  readonly costPico: bigint;
+  readonly totalTokens: number;
+  /** projectTokens / Σ grid tokens, in basis points (× 10000), integer-floored. 0 when the grid is empty. */
+  readonly tokenShareBp: number;
+}
+
+/**
+ * Roll records up by project over the GRID (kind `repo` + `unattributed`; tool rows are excluded so a
+ * "project share" never silently means "tool share"). Share = projectTokens / Σ grid tokens. Ordered
+ * repos by total tokens (effort) descending, ties by key, with `Unattributed` pinned last.
+ */
+export function aggregateByProject(records: readonly UsageRecord[], card: RateCard): ProjectTotal[] {
+  type Mutable = { projectKey: string; costPico: bigint; totalTokens: number };
+  const by = new Map<string, Mutable>();
+  let gridTokens = 0;
+  for (const r of records) {
+    if (metaForKey(r.project).kind === 'tool') continue; // grid = repo + unattributed only
+    let acc = by.get(r.project);
+    if (!acc) {
+      acc = { projectKey: r.project, costPico: 0n, totalTokens: 0 };
+      by.set(r.project, acc);
+    }
+    acc.costPico += normalizeCost(r, card);
+    const t = tokenTotal(r);
+    acc.totalTokens += t;
+    gridTokens += t;
+  }
+  const rows = [...by.values()].map((m) => ({
+    projectKey: m.projectKey,
+    costPico: m.costPico,
+    totalTokens: m.totalTokens,
+    tokenShareBp: gridTokens > 0 ? Number((BigInt(m.totalTokens) * 10000n) / BigInt(gridTokens)) : 0,
+  }));
+  return rows.sort((a, b) => {
+    const au = a.projectKey === UNATTRIBUTED;
+    const bu = b.projectKey === UNATTRIBUTED;
+    if (au !== bu) return au ? 1 : -1; // Unattributed last
+    if (a.totalTokens !== b.totalTokens) return b.totalTokens - a.totalTokens; // effort desc
+    return a.projectKey < b.projectKey ? -1 : a.projectKey > b.projectKey ? 1 : 0;
+  });
 }

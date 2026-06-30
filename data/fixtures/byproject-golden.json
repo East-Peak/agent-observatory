@@ -1,0 +1,22 @@
+{
+  "note": "FROZEN golden for aggregateByProject — the project leaderboard. Hand-derived, independent of the panel. Grid = repo + unattributed (the __codex__ tool row is EXCLUDED from totals AND the share denominator). Simple card (m1 = 1e6 pico/input-token). Grid tokens = 100 + 300 + 100 = 500. Share (basis points, floored) = projectTokens × 10000 / 500. Order: repos by tokens desc (marin 300, yard-ops 100), then Unattributed pinned last.",
+  "card": {
+    "version": "test-byproject-golden",
+    "asOf": "2026-06-27",
+    "unit": "picoUsdPerToken",
+    "rates": {
+      "m1": [{ "effectiveFrom": "2026-01-01", "effectiveTo": null, "input": "1000000", "output": "0", "cacheCreation": "0", "cacheRead": "0", "reasoning": "0" }]
+    }
+  },
+  "records": [
+    { "source": "claude", "date": "2026-05-19", "project": "/r/yard-ops", "model": "m1", "inputTokens": 100, "outputTokens": 0, "cacheCreationTokens": 0, "cacheReadTokens": 0, "reasoningTokens": 0 },
+    { "source": "claude", "date": "2026-05-19", "project": "/r/marin", "model": "m1", "inputTokens": 300, "outputTokens": 0, "cacheCreationTokens": 0, "cacheReadTokens": 0, "reasoningTokens": 0 },
+    { "source": "claude", "date": "2026-05-19", "project": "__unattributed__", "model": "m1", "inputTokens": 100, "outputTokens": 0, "cacheCreationTokens": 0, "cacheReadTokens": 0, "reasoningTokens": 0 },
+    { "source": "codex", "date": "2026-05-19", "project": "__codex__", "model": "m1", "inputTokens": 1000, "outputTokens": 0, "cacheCreationTokens": 0, "cacheReadTokens": 0, "reasoningTokens": 0 }
+  ],
+  "expectedRows": [
+    { "projectKey": "/r/marin", "costPico": "300000000", "totalTokens": 300, "tokenShareBp": 6000 },
+    { "projectKey": "/r/yard-ops", "costPico": "100000000", "totalTokens": 100, "tokenShareBp": 2000 },
+    { "projectKey": "__unattributed__", "costPico": "100000000", "totalTokens": 100, "tokenShareBp": 2000 }
+  ]
+}
