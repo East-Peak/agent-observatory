@@ -72,6 +72,10 @@ import { AppProviders, AppShell } from '@/App';
 import { createFixturesDataSource } from '@/data/FixturesDataSource';
 import type { DataSource } from '@/data/DataSource';
 import { normalizeCost, type RateBand, type RateCard } from '@/domain/normalizeCost';
+// quantileScale is FROZEN (src/domain/intensity.ts) + anchored by intensity.test, so the oracle TRUSTS
+// it (as it trusts normalizeCost) — the panel feeds it the same scale, so dom-vs-recompute verifies the
+// panel computed the right per-section cell values + applied the bins, not the (frozen) quantile itself.
+import { quantileScale } from '@/domain/intensity';
 import type { UsageRecord } from '@/domain/types';
 import type { RangeKey } from '@/domain/dateRange';
 import type { SourceKey } from '@/domain/sources';
@@ -146,7 +150,7 @@ function inWindow(date: string, w: DateWindow): boolean {
 
 // ---- recompute (independent of the panel; uses only anchored normalizeCost/selectBand) ---
 
-type Carrier = 'metric' | 'row' | 'series' | 'feed' | 'empty';
+type Carrier = 'metric' | 'row' | 'series' | 'feed' | 'empty' | 'heatmap';
 
 // Reserved project sentinels (frozen constants — mirror src/domain/projects.ts). The byProject grid +
 // the heatmap project section sum over repo + unattributed; the tool sentinels are excluded.
@@ -383,12 +387,132 @@ function recomputeByProject(
   return cells;
 }
 
+// ---- contributionHeatmap recompute (its own bucket/metric MODE on top of the shared range/source) ----
+//
+// Bucketing is reimplemented INLINE over the oracle's own UTC ordinals (independent of the unfrozen
+// src/domain/dateRange.ts that src/domain/buckets.ts builds on), so a date-math bug surfaces as
+// dom-vs-recompute. Cell VALUES + row ordering + per-section grouping are reimplemented inline too
+// (independent of src/domain/aggregate.ts). Only the FROZEN quantileScale + normalizeCost are trusted.
+
+type Bucket = 'day' | 'week' | 'month';
+type Metric = 'tokens' | 'cost';
+
+/** ISO date -> bucket id: day = the date; week = the ISO-8601 Monday (1970-01-05, ord 4, was a Monday);
+ *  month = YYYY-MM. Mirrors src/domain/buckets.ts but on the oracle's independent ordinals. */
+function bucketOfInline(iso: string, bucket: Bucket): string {
+  if (bucket === 'day') return iso;
+  if (bucket === 'month') return iso.slice(0, 7);
+  const o = toOrd(iso);
+  return fromOrd(o - (((o - 4) % 7) + 7) % 7);
+}
+/** Dense, ordered, de-duplicated bucket ids the inclusive [from,to] window touches. */
+function bucketsInWindowInline(from: string, to: string, bucket: Bucket): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (let o = toOrd(from); o <= toOrd(to); o++) {
+    const id = bucketOfInline(fromOrd(o), bucket);
+    if (!seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+const sectionOf = (project: string): 'project' | 'tool' => (TOOL_PROJECTS.has(project) ? 'tool' : 'project');
+
+/**
+ * The dense project × time grid (project section = repo + unattributed; Tools strip = the tool
+ * sentinels), for one (range, source, bucket, metric) mode. Emits one `heatmap` cell per rows × buckets
+ * (zeros materialized), value = token volume or normalized cost, plus its per-SECTION quantile
+ * `data-intensity` (tokens and `$` ramps are independent because the scale is built from the active
+ * metric's section values). A section with no rows under the scope (tool-only -> empty project grid;
+ * source=claude -> empty tool strip) emits the frozen empty state instead.
+ */
+function recomputeContributionHeatmap(
+  records: readonly UsageRecord[],
+  card: RateCard,
+  asOf: string,
+  range: RangeKey,
+  source: SourceKey,
+  bucket: Bucket,
+  metric: Metric,
+): Cell[] {
+  const scoped = scopeFilter(records, source);
+  const cur = currentWindow(range, asOf, earliestOf(scoped, asOf));
+  const inCur = scoped.filter((r) => inWindow(r.date, cur));
+  const buckets = bucketsInWindowInline(cur.from, cur.to, bucket);
+  const valueOf = (r: UsageRecord): bigint => (metric === 'tokens' ? BigInt(tokenTotal(r)) : normalizeCost(r, card));
+
+  const effort = new Map<string, number>(); // project -> total tokens (row ordering)
+  const cellVal = new Map<string, bigint>(); // `${project} ${bucketId}` -> value
+  for (const r of inCur) {
+    const ck = `${r.project} ${bucketOfInline(r.date, bucket)}`;
+    cellVal.set(ck, (cellVal.get(ck) ?? 0n) + valueOf(r));
+    effort.set(r.project, (effort.get(r.project) ?? 0) + tokenTotal(r));
+  }
+
+  const projectRows = [...effort.keys()]
+    .filter((p) => sectionOf(p) === 'project')
+    .sort((a, b) => {
+      const au = a === UNATTRIBUTED_KEY;
+      const bu = b === UNATTRIBUTED_KEY;
+      if (au !== bu) return au ? 1 : -1; // Unattributed last
+      const ta = effort.get(a)!;
+      const tb = effort.get(b)!;
+      if (ta !== tb) return tb - ta; // effort desc
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
+  const toolRows = ['__codex__', '__openclaw__'].filter((p) => effort.has(p)); // fixed order
+
+  const kind = metric === 'tokens' ? 'tokens' : 'cost';
+  const cells: Cell[] = [];
+  const emitSection = (rows: string[], section: 'project' | 'tool'): void => {
+    if (rows.length === 0) {
+      cells.push({ carrier: 'empty', key: `heatmap:${section}`, value: section, kind: 'empty' });
+      return;
+    }
+    const sectionValues: bigint[] = [];
+    for (const p of rows) for (const b of buckets) sectionValues.push(cellVal.get(`${p} ${b}`) ?? 0n);
+    const scale = quantileScale(sectionValues);
+    for (const p of rows) {
+      for (const b of buckets) {
+        const v = cellVal.get(`${p} ${b}`) ?? 0n;
+        cells.push({
+          carrier: 'heatmap',
+          key: `${p}|${b}`,
+          value: v.toString(),
+          kind,
+          extra: { section, intensity: String(scale.binOf(v)) },
+        });
+      }
+    }
+  };
+  emitSection(projectRows, 'project');
+  emitSection(toolRows, 'tool');
+  return cells;
+}
+
+// The default mode the panel renders un-toggled: Daily × Tokens. The generic value/scope oracle covers
+// this mode across the 16 (range, source) states; the dedicated heatmap test drives the other modes.
+const HEATMAP_DEFAULT_BUCKET: Bucket = 'day';
+const HEATMAP_DEFAULT_METRIC: Metric = 'tokens';
+function recomputeContributionHeatmapDefault(
+  records: readonly UsageRecord[],
+  card: RateCard,
+  asOf: string,
+  range: RangeKey,
+  source: SourceKey,
+): Cell[] {
+  return recomputeContributionHeatmap(records, card, asOf, range, source, HEATMAP_DEFAULT_BUCKET, HEATMAP_DEFAULT_METRIC);
+}
+
 const REGISTRY: Record<string, PanelSpec | undefined> = {
   spendOverview: { route: '/', recompute: recomputeSpendOverview },
   bySourceModel: { route: '/by-source-model', recompute: recomputeBySourceModel },
   cacheEfficiency: { route: '/cache-efficiency', recompute: recomputeCacheEfficiency },
   activityFeed: { route: '/activity-feed', recompute: recomputeActivityFeed },
   byProject: { route: '/by-project', recompute: recomputeByProject },
+  contributionHeatmap: { route: '/contribution', recompute: recomputeContributionHeatmapDefault },
 };
 
 // The (range, source) matrix exercised for value-equality — the FULL CARTESIAN product of every
@@ -814,6 +938,20 @@ function readDomCells(root: HTMLElement): Cell[] {
       extra: { date: attr(n, 'data-feed-date'), source: attr(n, 'data-feed-source') },
     });
   }
+  // Heatmap cells carry NO text — the value the user reads is the COLOUR (data-intensity), with the
+  // raw figure revealed on focus/expand. So we do NOT run assertVisibleConsistent (there is no figure
+  // to read); the closure is value == recompute AND intensity-bin == recompute (the visible colour).
+  for (const n of scope.queryAllByTestId('heatmap-cell')) {
+    const key = `${attr(n, 'data-cell-row')}|${attr(n, 'data-cell-bucket')}`;
+    visible('heatmap', key, n);
+    out.push({
+      carrier: 'heatmap',
+      key,
+      value: attr(n, 'data-cell-value'),
+      kind: attr(n, 'data-value-kind'),
+      extra: { section: attr(n, 'data-cell-section'), intensity: attr(n, 'data-intensity') },
+    });
+  }
   // Per-section empty state (byProject under a tool-only scope; the heatmap project grid / tool strip
   // under a one-sided scope). The carrier's identity is its section; a non-empty data-empty-reason is
   // required (a blank "empty" carrier that says nothing fails closed). assertVisibleConsistent is NOT
@@ -1009,6 +1147,10 @@ function runCouplingOracle(live: LivePanel[]): CategoryResult {
   for (const panel of live) {
     const spec = resolveSpec(panel, fails);
     if (!spec) continue;
+    // contributionHeatmap's DEFAULT mode is Tokens (no cost cell to scale here), so the generic
+    // rate-card coupling can't apply; its $-mode scaling + the token-vector perturbation are proven by
+    // the dedicated heatmap test (runHeatmapModeOracle) instead.
+    if (panel.key === 'contributionHeatmap') continue;
     checked.push(panel.key);
     try {
       renderRoute(spec.route, scope, createFixturesDataSource({ rateCard: RATE_CARD }));
@@ -1130,6 +1272,100 @@ async function runScopeMatrix(live: LivePanel[]): Promise<CategoryResult & { app
   return { ok: fails.length === 0, fails: fails.slice(0, 16), panelsChecked: checked, applicable: true };
 }
 
+// ---- contributionHeatmap mode oracle (the bucket/metric matrix the generic value oracle can't see) ----
+
+const HEATMAP_MODES = [
+  { bucket: 'day', bl: 'Daily', metric: 'tokens', ml: 'Tokens' },
+  { bucket: 'week', bl: 'Weekly', metric: 'tokens', ml: 'Tokens' },
+  { bucket: 'month', bl: 'Monthly', metric: 'tokens', ml: 'Tokens' },
+  { bucket: 'day', bl: 'Daily', metric: 'cost', ml: '$' },
+  { bucket: 'week', bl: 'Weekly', metric: 'cost', ml: '$' },
+  { bucket: 'month', bl: 'Monthly', metric: 'cost', ml: '$' },
+] as const;
+// Representative scopes: rich grid, a small window, a tool-only scope (project grid empty), and a
+// claude-only scope (Tools strip empty). The full (range,source) sweep is the generic value oracle's
+// job (default mode); here we vary the MODE the generic oracle can't reach.
+const HEATMAP_SCOPES: ReadonlyArray<{ label: string; range: RangeKey; source: SourceKey }> = [
+  { label: 'all/all', range: 'all', source: 'all' },
+  { label: 'last7/all', range: 'last7', source: 'all' },
+  { label: 'all/codex', range: 'all', source: 'codex' },
+  { label: 'all/claude', range: 'all', source: 'claude' },
+];
+
+/** Drive the heatmap to a (range, source, bucket, metric) mode through the REAL toggles + scope, and
+ *  return its DOM cells (or push a fail and return null). */
+function renderHeatmapMode(
+  spec: PanelSpec,
+  sc: { label: string; range: RangeKey; source: SourceKey },
+  m: (typeof HEATMAP_MODES)[number],
+  card: RateCard,
+  fails: string[],
+): Cell[] | null {
+  renderRoute(spec.route, { range: sc.range, source: sc.source }, createFixturesDataSource({ rateCard: card }));
+  const b = findFilterOption('bucket-filter', 'bucket-option', m.bl);
+  const mt = findFilterOption('metric-filter', 'metric-option', m.ml);
+  if (!b || !mt) {
+    fails.push(`heatmap [${sc.label}]: missing ${!b ? `bucket "${m.bl}"` : `metric "${m.ml}"`} toggle option`);
+    return null;
+  }
+  fireEvent.click(b);
+  fireEvent.click(mt);
+  const activeBucket = activeOptionLabel('bucket-filter', 'bucket-option');
+  const activeMetric = activeOptionLabel('metric-filter', 'metric-option');
+  if (activeBucket === null || !activeBucket.includes(norm(m.bl)) || activeMetric === null || !activeMetric.includes(norm(m.ml))) {
+    fails.push(`heatmap [${sc.label}]: toggles did not activate to ${m.bl}/${m.ml}`);
+    return null;
+  }
+  return readDomCells(requirePanelRoot('contributionHeatmap'));
+}
+
+function runHeatmapModeOracle(live: LivePanel[]): CategoryResult & { applicable: boolean } {
+  const hm = live.find((p) => p.key === 'contributionHeatmap');
+  if (!hm) return { ok: true, fails: [], panelsChecked: [], applicable: false };
+  const fails: string[] = [];
+  const spec = resolveSpec(hm, fails);
+  if (!spec) return { ok: false, fails, panelsChecked: ['contributionHeatmap'], applicable: true };
+
+  for (const sc of HEATMAP_SCOPES) {
+    for (const m of HEATMAP_MODES) {
+      try {
+        // (a) value-equality: the real toggled grid == the independent recompute for this exact mode.
+        const dom = renderHeatmapMode(spec, sc, m, RATE_CARD, fails);
+        cleanup();
+        if (!dom) continue;
+        const expected = recomputeContributionHeatmap(RECORDS, RATE_CARD, ASOF, sc.range, sc.source, m.bucket, m.metric);
+        compareCells(`heatmap [${sc.label} ${m.bl}/${m.ml}]`, expected, dom, fails);
+
+        // (b) rate-card coupling for THIS mode: in $ mode every cost cell scales by k; in Tokens mode
+        // every token cell is INVARIANT (tokens never move with the rate card) — the heatmap's coupling
+        // proof, since the generic coupling oracle skips it (default mode has no cost cell).
+        for (const k of FACTORS) {
+          const scaled = renderHeatmapMode(spec, sc, m, scaleCardInline(RATE_CARD, k), fails);
+          cleanup();
+          if (!scaled) continue;
+          const baseByKey = new Map(dom.map((c) => [keyOf(c), c]));
+          for (const c of scaled.filter((x) => x.carrier === 'heatmap')) {
+            const ref = baseByKey.get(keyOf(c));
+            if (!ref) {
+              fails.push(`heatmap [${sc.label} ${m.bl}/${m.ml}] x${k}: unexpected ${keyOf(c)}`);
+            } else if (m.metric === 'cost') {
+              if (!isIntString(c.value) || !isIntString(ref.value) || BigInt(c.value) !== BigInt(ref.value) * BigInt(k)) {
+                fails.push(`heatmap [${sc.label} ${m.bl}/$] x${k}: ${keyOf(c)} ${c.value} != ${ref.value}*${k}`);
+              }
+            } else if (c.value !== ref.value) {
+              fails.push(`heatmap [${sc.label} ${m.bl}/Tokens] x${k}: ${keyOf(c)} token cell moved (${c.value} != ${ref.value})`);
+            }
+          }
+        }
+      } catch (e) {
+        fails.push(`heatmap [${sc.label} ${m.bl}/${m.ml}]: threw ${String((e as Error)?.message ?? e)}`);
+        cleanup();
+      }
+    }
+  }
+  return { ok: fails.length === 0, fails: fails.slice(0, 16), panelsChecked: ['contributionHeatmap'], applicable: true };
+}
+
 // ---- result file ------------------------------------------------------------------------
 
 interface OracleResult {
@@ -1141,6 +1377,7 @@ interface OracleResult {
   values: CategoryResult | null;
   coupling: CategoryResult | null;
   scopeMatrix: (CategoryResult & { applicable: boolean }) | null;
+  heatmapModes: (CategoryResult & { applicable: boolean }) | null;
 }
 const RESULT: OracleResult = {
   nonce: process.env.ORACLE_RUN_NONCE ?? null,
@@ -1149,6 +1386,7 @@ const RESULT: OracleResult = {
   values: null,
   coupling: null,
   scopeMatrix: null,
+  heatmapModes: null,
 };
 function writeResult(): void {
   // vitest runs with cwd = repo root; verify.mjs reads this exact path back.
@@ -1177,5 +1415,10 @@ describe('frozen panel oracle (verifier-owned — the trusted panel gate)', () =
   it('scope-persistence: shared scope across the real nav matrix (>=2 live panels)', async () => {
     RESULT.scopeMatrix = await runScopeMatrix(LIVE);
     expect(RESULT.scopeMatrix.fails).toEqual([]);
+  });
+
+  it('heatmap-modes: contributionHeatmap matches the recompute across day/week/month x tokens/$ (+ coupling)', () => {
+    RESULT.heatmapModes = runHeatmapModeOracle(LIVE);
+    expect(RESULT.heatmapModes.fails).toEqual([]);
   });
 });
