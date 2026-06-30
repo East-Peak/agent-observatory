@@ -146,7 +146,12 @@ function inWindow(date: string, w: DateWindow): boolean {
 
 // ---- recompute (independent of the panel; uses only anchored normalizeCost/selectBand) ---
 
-type Carrier = 'metric' | 'row' | 'series' | 'feed';
+type Carrier = 'metric' | 'row' | 'series' | 'feed' | 'empty';
+
+// Reserved project sentinels (frozen constants — mirror src/domain/projects.ts). The byProject grid +
+// the heatmap project section sum over repo + unattributed; the tool sentinels are excluded.
+const TOOL_PROJECTS = new Set(['__codex__', '__openclaw__']);
+const UNATTRIBUTED_KEY = '__unattributed__';
 interface Cell {
   readonly carrier: Carrier;
   readonly key: string;
@@ -325,11 +330,65 @@ function recomputeActivityFeed(
   return cells;
 }
 
+// byProject: the project leaderboard over the GRID (repo + unattributed; tool rows excluded from totals
+// AND the share denominator). Reimplemented INLINE (independent of src/domain/aggregate.ts, so an
+// aggregateByProject bug surfaces as dom-vs-recompute). Each row carries three carriers on one visible
+// row — cost (scales with the card), token volume + token-share-of-grid (both invariant). Under a
+// tool-only source scope the grid is empty -> the frozen empty state (section "project").
+function recomputeByProject(
+  records: readonly UsageRecord[],
+  card: RateCard,
+  asOf: string,
+  range: RangeKey,
+  source: SourceKey,
+): Cell[] {
+  const grid = scopeWindowed(records, asOf, range, source).filter((r) => !TOOL_PROJECTS.has(r.project));
+  const by = new Map<string, { cost: bigint; tokens: number }>();
+  let gridTokens = 0;
+  let totalCost = 0n;
+  for (const r of grid) {
+    const acc = by.get(r.project) ?? { cost: 0n, tokens: 0 };
+    const c = normalizeCost(r, card);
+    acc.cost += c;
+    acc.tokens += tokenTotal(r);
+    by.set(r.project, acc);
+    gridTokens += tokenTotal(r);
+    totalCost += c;
+  }
+  if (by.size === 0 || gridTokens === 0) {
+    // The project leaderboard's only empty state: the grid (repo + unattributed) is empty (tool-only
+    // scope). Section "project"; the reader keys it `byproject:project`.
+    return [{ carrier: 'empty', key: 'byproject:project', value: 'project', kind: 'empty' }];
+  }
+  const rows = [...by.entries()]
+    .map(([projectKey, v]) => ({
+      projectKey,
+      cost: v.cost,
+      tokens: v.tokens,
+      shareBp: Number((BigInt(v.tokens) * 10000n) / BigInt(gridTokens)),
+    }))
+    .sort((a, b) => {
+      const au = a.projectKey === UNATTRIBUTED_KEY;
+      const bu = b.projectKey === UNATTRIBUTED_KEY;
+      if (au !== bu) return au ? 1 : -1; // Unattributed last
+      if (a.tokens !== b.tokens) return b.tokens - a.tokens; // effort desc
+      return a.projectKey < b.projectKey ? -1 : a.projectKey > b.projectKey ? 1 : 0;
+    });
+  const cells: Cell[] = [{ carrier: 'metric', key: 'total-cost', value: totalCost.toString(), kind: 'cost' }];
+  for (const r of rows) {
+    cells.push({ carrier: 'row', key: r.projectKey, value: r.cost.toString(), kind: 'cost' });
+    cells.push({ carrier: 'row', key: `${r.projectKey}#tokens`, value: String(r.tokens), kind: 'tokens' });
+    cells.push({ carrier: 'row', key: `${r.projectKey}#share`, value: String(r.shareBp), kind: 'percent' });
+  }
+  return cells;
+}
+
 const REGISTRY: Record<string, PanelSpec | undefined> = {
   spendOverview: { route: '/', recompute: recomputeSpendOverview },
   bySourceModel: { route: '/by-source-model', recompute: recomputeBySourceModel },
   cacheEfficiency: { route: '/cache-efficiency', recompute: recomputeCacheEfficiency },
   activityFeed: { route: '/activity-feed', recompute: recomputeActivityFeed },
+  byProject: { route: '/by-project', recompute: recomputeByProject },
 };
 
 // The (range, source) matrix exercised for value-equality — the FULL CARTESIAN product of every
@@ -716,6 +775,20 @@ function readDomCells(root: HTMLElement): Cell[] {
     visible('row', key, n);
     assertVisibleConsistent('row', key, kind, value, n);
     out.push({ carrier: 'row', key, value, kind });
+    // A byProject row additionally carries token volume + token-share-of-grid on the SAME visible row
+    // (absent on bySourceModel / heatmap-breakdown rows, so this is backward-compatible). Read each as
+    // its own keyed cell so the value oracle pins them and the coupling oracle proves them invariant.
+    const tokens = n.getAttribute('data-row-tokens');
+    if (tokens !== null) {
+      assertVisibleConsistent('row', `${key}#tokens`, 'tokens', tokens, n);
+      out.push({ carrier: 'row', key: `${key}#tokens`, value: tokens, kind: 'tokens' });
+    }
+    const share = n.getAttribute('data-row-share');
+    if (share !== null) {
+      const shareKind = attr(n, 'data-share-kind');
+      assertVisibleConsistent('row', `${key}#share`, shareKind, share, n);
+      out.push({ carrier: 'row', key: `${key}#share`, value: share, kind: shareKind });
+    }
   }
   for (const n of scope.queryAllByTestId('series-point')) {
     const key = attr(n, 'data-point-date');
@@ -740,6 +813,23 @@ function readDomCells(root: HTMLElement): Cell[] {
       kind,
       extra: { date: attr(n, 'data-feed-date'), source: attr(n, 'data-feed-source') },
     });
+  }
+  // Per-section empty state (byProject under a tool-only scope; the heatmap project grid / tool strip
+  // under a one-sided scope). The carrier's identity is its section; a non-empty data-empty-reason is
+  // required (a blank "empty" carrier that says nothing fails closed). assertVisibleConsistent is NOT
+  // applied (an empty state shows prose, not a formatted figure).
+  for (const [testid, key] of [
+    ['byproject-empty', 'byproject'],
+    ['heatmap-empty', 'heatmap'],
+  ] as const) {
+    for (const n of scope.queryAllByTestId(testid)) {
+      visible('empty', key, n);
+      const section = attr(n, 'data-empty-section');
+      if (norm(attr(n, 'data-empty-reason')) === '') {
+        throw new Error(`${testid} (section "${section}") has no data-empty-reason — an empty state must say why`);
+      }
+      out.push({ carrier: 'empty', key: section ? `${key}:${section}` : key, value: section, kind: 'empty' });
+    }
   }
   return out;
 }
