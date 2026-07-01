@@ -5,7 +5,6 @@
     "spendOverview": { "status": "live", "dir": "spend-overview", "route": "/" },
     "bySourceModel": { "status": "live", "dir": "by-source-model", "route": "/by-source-model" },
     "cacheEfficiency": { "status": "live", "dir": "cache-efficiency", "route": "/cache-efficiency" },
-    "activityFeed": { "status": "live", "dir": "activity-feed", "route": "/activity-feed" },
-    "byProject": { "status": "live", "dir": "by-project", "route": "/by-project" }
+    "activityFeed": { "status": "live", "dir": "activity-feed", "route": "/activity-feed" }
   }
 }
