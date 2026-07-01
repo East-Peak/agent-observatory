@@ -894,13 +894,16 @@ function cellColour(n: Element): string {
   const inline = (el.style?.backgroundColor || el.style?.getPropertyValue('background-color') || '').trim();
   return (inline || n.getAttribute('fill') || (el.style?.background ?? '')).trim();
 }
-const TRANSPARENT_COLOURS = new Set(['transparent', 'rgba(0,0,0,0)', 'rgb(0,0,0,0)']);
-// Non-concrete colour tokens jsdom cannot resolve to a real pixel colour — two cells could carry
-// textually-distinct-but-unresolved var()/currentColor and render identically or invisibly (Codex r4 #1).
-const NON_CONCRETE_COLOUR = /var\(|url\(|gradient|current[Cc]olor|\b(?:inherit|initial|unset|revert|none)\b/i;
-/** Canonicalize an authored colour to a concrete rgb/rgba (or a named colour jsdom accepts), or null if
- *  it is blank, transparent, or a non-concrete token — so distinctness compares REAL colours, not
- *  textual forms, and an unresolved token fails closed. */
+// Non-concrete colour tokens jsdom cannot resolve to a comparable pixel colour — two cells could carry
+// textually-distinct-but-unresolved forms and render identically or invisibly (Codex r4 #1 / r5).
+const NON_CONCRETE_COLOUR =
+  /var\(|url\(|gradient|color-mix\(|color\(|light-dark\(|oklch\(|oklab\(|\blab\(|\blch\(|\bhwb\(|current[Cc]olor|\b(?:inherit|initial|unset|revert|none)\b/i;
+/** Canonicalize an authored colour to a concrete `rgb()/rgba()` string, or null if it is blank,
+ *  transparent, or anything jsdom does NOT normalize to rgb. We accept ONLY the rgb/rgba canonical form —
+ *  the single representation comparable pixel-for-pixel — so distinctness never compares incomparable
+ *  forms. Named colours + modern/alias syntaxes (color-mix/oklch/lab/color()/light-dark/system colours),
+ *  which jsdom stores UNRESOLVED, are rejected and fail closed; panels must colour cells with hex/rgb/hsl,
+ *  which jsdom normalizes to rgb() (Codex r5). */
 function canonicalColour(raw: string): string | null {
   const v = raw.trim();
   if (v === '' || NON_CONCRETE_COLOUR.test(v)) return null;
@@ -908,7 +911,9 @@ function canonicalColour(raw: string): string | null {
   const probe = document.createElement('span');
   probe.style.backgroundColor = v;
   const canon = probe.style.backgroundColor.trim();
-  if (canon === '' || TRANSPARENT_COLOURS.has(canon.replace(/\s+/g, '').toLowerCase())) return null;
+  const isRgb = /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i.test(canon);
+  const isRgba = /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(?:\d*\.?\d+)\s*\)$/i.test(canon);
+  if (!isRgb && !isRgba) return null; // named / alias / modern colour jsdom left unresolved -> fail closed
   if (/^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*0?\.?0+\s*\)$/i.test(canon)) return null; // fully transparent
   return canon;
 }
