@@ -8,6 +8,7 @@ import { BySourceModelPanel } from '@/panels/by-source-model/BySourceModelPanel'
 import { CacheEfficiencyPanel } from '@/panels/cache-efficiency/CacheEfficiencyPanel';
 import { ActivityFeedPanel } from '@/panels/activity-feed/ActivityFeedPanel';
 import { ByProjectPanel } from '@/panels/by-project/ByProjectPanel';
+import { ContributionHeatmapPanel } from '@/panels/contribution-heatmap/ContributionHeatmapPanel';
 
 /**
  * The live panels wired into the shell. Promoting a panel to `live` adds its row here AND a
@@ -22,6 +23,7 @@ const NAV = [
   { to: '/cache-efficiency', label: 'Cache Efficiency' },
   { to: '/activity-feed', label: 'Activity Feed' },
   { to: '/by-project', label: 'By Project' },
+  { to: '/contribution', label: 'Contribution Heatmap' },
 ] as const;
 
 /** The REAL route table (router-agnostic). Shared by production `<App>` and the frozen oracle. */
@@ -33,6 +35,7 @@ export function AppRoutes() {
       <Route path="/cache-efficiency" element={<CacheEfficiencyPanel />} />
       <Route path="/activity-feed" element={<ActivityFeedPanel />} />
       <Route path="/by-project" element={<ByProjectPanel />} />
+      <Route path="/contribution" element={<ContributionHeatmapPanel />} />
     </Routes>
   );
 }
