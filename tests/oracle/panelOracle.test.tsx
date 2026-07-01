@@ -886,6 +886,15 @@ function assertVisibleConsistent(carrier: Carrier, key: string, kind: string, ra
  *  render VISIBLE text/geometry consistent with its raw attribute, so a value the user cannot see (a
  *  hidden subtree, or an empty/contradictory figure) cannot satisfy the gate; both FAIL CLOSED (Codex
  *  r3 blocker + r5 major #3). */
+// A heatmap cell's applied colour, read from the DOM the honest way jsdom allows: an INLINE background
+// (or SVG fill). A stylesheet class colour is invisible to jsdom, so the contract requires the colour
+// inline; this returns '' when none is set (caught as a blank cell).
+function cellColour(n: Element): string {
+  const el = n as HTMLElement;
+  const inline = (el.style?.backgroundColor || el.style?.getPropertyValue('background-color') || '').trim();
+  return (inline || n.getAttribute('fill') || (el.style?.background ?? '')).trim();
+}
+const TRANSPARENT_COLOURS = new Set(['transparent', 'rgba(0,0,0,0)', 'rgb(0,0,0,0)']);
 // The DOM DOCUMENT order (queryAllByTestId order) of ordered carriers must follow their declared indices,
 // binding the indices (which compareCells pins to the recompute) to the order the user sees. jsdom has no
 // computed layout, so document order is the honest proxy — a panel that stamps correct indices while
@@ -989,30 +998,56 @@ function readDomCells(root: HTMLElement): Cell[] {
   // Heatmap cells carry NO text — the value the user reads is the COLOUR (data-intensity), with the
   // raw figure revealed on focus/expand. So we do NOT run assertVisibleConsistent (there is no figure
   // to read); the closure is value == recompute AND intensity-bin == recompute (the visible colour).
+  const heatColourByBin = new Map<string, string>(); // `${section}:${bin}` -> colour (must be consistent)
+  const heatColoursBySection = new Map<string, Map<string, string>>(); // section -> bin -> colour (distinct)
   for (const n of scope.queryAllByTestId('heatmap-cell')) {
     const key = `${attr(n, 'data-cell-row')}|${attr(n, 'data-cell-bucket')}`;
     visible('heatmap', key, n);
-    // The intensity-to-COLOUR binding: the cell must carry EXACTLY ONE `intensity-<n>` class and it must
-    // equal `intensity-<data-intensity>`, so the VISIBLE colour (a CSS class — jsdom has no computed
-    // layout) is bound to the recomputed bin and can't be styled by a second conflicting class
-    // (Codex 0-E r2 #4).
     const bin = attr(n, 'data-intensity');
-    const intensityClasses = [...n.classList].filter((c) => /^intensity-\d+$/.test(c));
-    if (intensityClasses.length !== 1 || intensityClasses[0] !== `intensity-${bin}`) {
-      throw new Error(`heatmap-cell "${key}" must carry EXACTLY the class "intensity-${bin}" (matching data-intensity) — got [${intensityClasses.join(', ')}]`);
+    const section = attr(n, 'data-cell-section');
+    // The VISIBLE colour IS the datum — so it must be an INLINE, data-driven style the oracle can read
+    // (jsdom applies no stylesheets, so a class-only colour is invisible to it and unprovable), non-blank,
+    // so a data-correct grid cannot certify while rendering blank/monochrome (Codex r3 #1). It must be a
+    // pure function of (section, bin): same section+bin -> same colour (checked here), distinct bins ->
+    // distinct colours (checked after the loop). NOTE: jsdom cannot verify actual pixels/contrast — this
+    // pins the applied inline colour, the honest limit of a layout-free renderer.
+    const colour = cellColour(n);
+    if (colour === '' || TRANSPARENT_COLOURS.has(colour.replace(/\s+/g, ''))) {
+      throw new Error(`heatmap-cell "${key}" (bin ${bin}) has no visible inline background colour — the grid would render blank`);
     }
+    const ck = `${section}:${bin}`;
+    const prevColour = heatColourByBin.get(ck);
+    if (prevColour !== undefined && prevColour !== colour) {
+      throw new Error(`heatmap-cell "${key}" colour "${colour}" != "${prevColour}" for the same section/bin (${ck}) — colour is not a function of the bin`);
+    }
+    heatColourByBin.set(ck, colour);
+    let binMap = heatColoursBySection.get(section);
+    if (!binMap) {
+      binMap = new Map();
+      heatColoursBySection.set(section, binMap);
+    }
+    binMap.set(bin, colour);
     out.push({
       carrier: 'heatmap',
       key,
       value: attr(n, 'data-cell-value'),
       kind: attr(n, 'data-value-kind'),
       extra: {
-        section: attr(n, 'data-cell-section'),
+        section,
         intensity: bin,
         rowIndex: attr(n, 'data-cell-row-index'),
         colIndex: attr(n, 'data-cell-col-index'),
       },
     });
+  }
+  // Distinct bins within a section MUST render distinct colours (a monochrome ramp fails closed). Over a
+  // rich scope (all/all) several bins co-occur, so this is a real ramp check; narrow scopes pass trivially.
+  for (const [section, binMap] of heatColoursBySection) {
+    const colours = [...binMap.values()];
+    if (new Set(colours).size !== colours.length) {
+      const detail = [...binMap.entries()].map(([b, c]) => `bin${b}=${c}`).join(', ');
+      throw new Error(`heatmap section "${section}" renders non-distinct bin colours (${detail}) — the ramp is not distinguishable`);
+    }
   }
   // Per-section empty state (byProject under a tool-only scope; the heatmap project grid / tool strip
   // under a one-sided scope). The carrier's identity is its section; a non-empty data-empty-reason is
@@ -1370,16 +1405,6 @@ const HEATMAP_MODES = [
   { bucket: 'week', bl: 'Weekly', metric: 'cost', ml: '$' },
   { bucket: 'month', bl: 'Monthly', metric: 'cost', ml: '$' },
 ] as const;
-// Representative scopes: rich grid, a small window, a tool-only scope (project grid empty), and a
-// claude-only scope (Tools strip empty). The full (range,source) sweep is the generic value oracle's
-// job (default mode); here we vary the MODE the generic oracle can't reach.
-const HEATMAP_SCOPES: ReadonlyArray<{ label: string; range: RangeKey; source: SourceKey }> = [
-  { label: 'all/all', range: 'all', source: 'all' },
-  { label: 'last7/all', range: 'last7', source: 'all' },
-  { label: 'all/codex', range: 'all', source: 'codex' },
-  { label: 'all/claude', range: 'all', source: 'claude' },
-];
-
 /** Drive the heatmap to a (range, source, bucket, metric) mode through the REAL toggles + scope, and
  *  return its DOM cells (or push a fail and return null). */
 function renderHeatmapMode(
@@ -1415,23 +1440,19 @@ function runHeatmapModeOracle(live: LivePanel[]): CategoryResult & { applicable:
   if (!spec) return { ok: false, fails, panelsChecked: ['contributionHeatmap'], applicable: true };
 
   // Value-equality AND rate-card coupling over the FULL (range x source) matrix x every mode, via ONE
-  // uniform check: DOM == recompute(card), for card in [base, ...scaled]. Base card = value equality;
-  // a scaled card = coupling (cost cells x k, token cells invariant, intensity bins preserved since
-  // scaling preserves rank, AND the cell SET unchanged — compareCells is total). EVERY (range, source,
-  // mode) gets the base card + one representative factor, so no scope/mode can hide a wrong value OR a
-  // cost path that ignores the card (Codex r2 #2); the representative subset additionally sweeps ALL
-  // factors for multi-point linearity. Card-linearity is scope-independent (one normalizeCost pipeline),
-  // so the single-factor full sweep + full-factor subset is a complete cost proof without 16x4 renders.
+  // uniform check: DOM == recompute(card), for card in [base, ...scaled]. Base card = value equality; a
+  // scaled card = coupling (cost cells x k, token cells invariant, intensity bins preserved since scaling
+  // preserves rank, AND the cell SET unchanged — compareCells is total). $ modes sweep ALL frozen factors
+  // over EVERY scope (full cost linearity, no unprobed scope — Codex r3 #2); token modes get base + one
+  // scaled card everywhere (tokens must be INVARIANT to the card — one point proves it).
   const fullStates = RANGE_KEYS.flatMap((range) => SOURCE_KEYS.map((source) => ({ label: `${range}/${source}`, range, source })));
-  const inSubset = (sc: { range: RangeKey; source: SourceKey }): boolean =>
-    HEATMAP_SCOPES.some((s) => s.range === sc.range && s.source === sc.source);
   for (const sc of fullStates) {
-    const factors = inSubset(sc) ? FACTORS : FACTORS.slice(0, 1);
-    const cards: Array<{ card: RateCard; tag: string }> = [
-      { card: RATE_CARD, tag: 'x1' },
-      ...factors.map((k) => ({ card: scaleCardInline(RATE_CARD, k), tag: `x${k}` })),
-    ];
     for (const m of HEATMAP_MODES) {
+      const factors = m.metric === 'cost' ? FACTORS : FACTORS.slice(0, 1);
+      const cards: Array<{ card: RateCard; tag: string }> = [
+        { card: RATE_CARD, tag: 'x1' },
+        ...factors.map((k) => ({ card: scaleCardInline(RATE_CARD, k), tag: `x${k}` })),
+      ];
       for (const { card, tag } of cards) {
         try {
           const dom = renderHeatmapMode(spec, sc, m, card, fails);
@@ -1544,8 +1565,22 @@ function runHeatmapInteractionOracle(live: LivePanel[]): CategoryResult & { appl
           }
           const methods: Array<[string, (c: Element) => void]> = [['click', (c) => fireEvent.click(c)]];
           if (isRoleButton) {
-            methods.push(['Enter', (c) => fireEvent.keyDown(c, { key: 'Enter', code: 'Enter' })]);
-            methods.push(['Space', (c) => fireEvent.keyDown(c, { key: ' ', code: 'Space' })]);
+            // Fire the FULL key sequence (down + up) so an impl that activates on keyUp (a legitimate
+            // ARIA pattern) is not false-rejected (Codex r3 #3).
+            methods.push([
+              'Enter',
+              (c) => {
+                fireEvent.keyDown(c, { key: 'Enter', code: 'Enter' });
+                fireEvent.keyUp(c, { key: 'Enter', code: 'Enter' });
+              },
+            ]);
+            methods.push([
+              'Space',
+              (c) => {
+                fireEvent.keyDown(c, { key: ' ', code: 'Space' });
+                fireEvent.keyUp(c, { key: ' ', code: 'Space' });
+              },
+            ]);
           }
           return { project: attr(cell, 'data-cell-row'), bucket: attr(cell, 'data-cell-bucket'), methods };
         } finally {
