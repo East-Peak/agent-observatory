@@ -895,6 +895,23 @@ function cellColour(n: Element): string {
   return (inline || n.getAttribute('fill') || (el.style?.background ?? '')).trim();
 }
 const TRANSPARENT_COLOURS = new Set(['transparent', 'rgba(0,0,0,0)', 'rgb(0,0,0,0)']);
+// Non-concrete colour tokens jsdom cannot resolve to a real pixel colour — two cells could carry
+// textually-distinct-but-unresolved var()/currentColor and render identically or invisibly (Codex r4 #1).
+const NON_CONCRETE_COLOUR = /var\(|url\(|gradient|current[Cc]olor|\b(?:inherit|initial|unset|revert|none)\b/i;
+/** Canonicalize an authored colour to a concrete rgb/rgba (or a named colour jsdom accepts), or null if
+ *  it is blank, transparent, or a non-concrete token — so distinctness compares REAL colours, not
+ *  textual forms, and an unresolved token fails closed. */
+function canonicalColour(raw: string): string | null {
+  const v = raw.trim();
+  if (v === '' || NON_CONCRETE_COLOUR.test(v)) return null;
+  // Round-trip through jsdom's CSS parser: an invalid colour does not stick (property stays '').
+  const probe = document.createElement('span');
+  probe.style.backgroundColor = v;
+  const canon = probe.style.backgroundColor.trim();
+  if (canon === '' || TRANSPARENT_COLOURS.has(canon.replace(/\s+/g, '').toLowerCase())) return null;
+  if (/^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*0?\.?0+\s*\)$/i.test(canon)) return null; // fully transparent
+  return canon;
+}
 // The DOM DOCUMENT order (queryAllByTestId order) of ordered carriers must follow their declared indices,
 // binding the indices (which compareCells pins to the recompute) to the order the user sees. jsdom has no
 // computed layout, so document order is the honest proxy — a panel that stamps correct indices while
@@ -1011,9 +1028,9 @@ function readDomCells(root: HTMLElement): Cell[] {
     // pure function of (section, bin): same section+bin -> same colour (checked here), distinct bins ->
     // distinct colours (checked after the loop). NOTE: jsdom cannot verify actual pixels/contrast — this
     // pins the applied inline colour, the honest limit of a layout-free renderer.
-    const colour = cellColour(n);
-    if (colour === '' || TRANSPARENT_COLOURS.has(colour.replace(/\s+/g, ''))) {
-      throw new Error(`heatmap-cell "${key}" (bin ${bin}) has no visible inline background colour — the grid would render blank`);
+    const colour = canonicalColour(cellColour(n));
+    if (colour === null) {
+      throw new Error(`heatmap-cell "${key}" (bin ${bin}) has no CONCRETE visible colour — blank, transparent, or an unresolved var()/currentColor/gradient token`);
     }
     const ck = `${section}:${bin}`;
     const prevColour = heatColourByBin.get(ck);
@@ -1442,13 +1459,14 @@ function runHeatmapModeOracle(live: LivePanel[]): CategoryResult & { applicable:
   // Value-equality AND rate-card coupling over the FULL (range x source) matrix x every mode, via ONE
   // uniform check: DOM == recompute(card), for card in [base, ...scaled]. Base card = value equality; a
   // scaled card = coupling (cost cells x k, token cells invariant, intensity bins preserved since scaling
-  // preserves rank, AND the cell SET unchanged — compareCells is total). $ modes sweep ALL frozen factors
-  // over EVERY scope (full cost linearity, no unprobed scope — Codex r3 #2); token modes get base + one
-  // scaled card everywhere (tokens must be INVARIANT to the card — one point proves it).
+  // preserves rank, AND the cell SET unchanged — compareCells is total). EVERY mode ($ AND tokens) sweeps
+  // ALL frozen factors over EVERY scope — no unprobed (scope, factor) can hide a card-coupled cost path
+  // OR a token path that leaks the card at some factor (Codex r3 #2 / r4 #2). The heatmap it-block gets a
+  // generous timeout to cover the full matrix.
   const fullStates = RANGE_KEYS.flatMap((range) => SOURCE_KEYS.map((source) => ({ label: `${range}/${source}`, range, source })));
   for (const sc of fullStates) {
     for (const m of HEATMAP_MODES) {
-      const factors = m.metric === 'cost' ? FACTORS : FACTORS.slice(0, 1);
+      const factors = FACTORS;
       const cards: Array<{ card: RateCard; tag: string }> = [
         { card: RATE_CARD, tag: 'x1' },
         ...factors.map((k) => ({ card: scaleCardInline(RATE_CARD, k), tag: `x${k}` })),

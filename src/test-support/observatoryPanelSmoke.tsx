@@ -42,8 +42,10 @@
  *     -cost-pico (cost-kind) /-session;
  *   - byProject row -> data-testid="breakdown-row" + data-row-key/-value/-tokens/-share (+ data-share-kind)
  *     + data-row-index (rank); heatmap cell -> data-testid="heatmap-cell" + data-cell-row/-bucket/-section/
- *     -value/-value-kind/-intensity + data-cell-row-index/-col-index + class "intensity-<bin>"; per-section
- *     empty -> data-testid="byproject-empty"/"heatmap-empty" + data-empty-section/-reason (visible prose);
+ *     -value/-value-kind/-intensity + data-cell-row-index/-col-index + an INLINE concrete background colour
+ *     (style backgroundColor / SVG fill — NOT a stylesheet class; a pure function of (section,bin), distinct
+ *     across bins); per-section empty -> data-testid="byproject-empty"/"heatmap-empty" + data-empty-section/
+ *     -reason (visible prose);
  *   - time-range control -> data-testid="range-filter"; each option -> data-testid="range-option"
  *     with text one of Last 7 Days / Last 30 Days / This Month / All Time; the ACTIVE one
  *     carries aria-current="true";
