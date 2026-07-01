@@ -886,6 +886,38 @@ function assertVisibleConsistent(carrier: Carrier, key: string, kind: string, ra
  *  render VISIBLE text/geometry consistent with its raw attribute, so a value the user cannot see (a
  *  hidden subtree, or an empty/contradictory figure) cannot satisfy the gate; both FAIL CLOSED (Codex
  *  r3 blocker + r5 major #3). */
+// The DOM DOCUMENT order (queryAllByTestId order) of ordered carriers must follow their declared indices,
+// binding the indices (which compareCells pins to the recompute) to the order the user sees. jsdom has no
+// computed layout, so document order is the honest proxy — a panel that stamps correct indices while
+// emitting cells in a scrambled DOM order is caught here (Codex r2 #1).
+function assertDomOrder(cells: Cell[]): void {
+  // heatmap cells: STRICTLY increasing lexicographically by (rowIndex, colIndex) — i.e. exactly the
+  // recompute's row-major order (project section first).
+  let pr = -1;
+  let pc = -1;
+  for (const c of cells) {
+    if (c.carrier !== 'heatmap') continue;
+    const r = Number(c.extra?.rowIndex);
+    const col = Number(c.extra?.colIndex);
+    if (!Number.isInteger(r) || !Number.isInteger(col) || r < 0 || col < 0) {
+      throw new Error(`heatmap-cell "${c.key}" missing integer data-cell-row-index/-col-index`);
+    }
+    if (r < pr || (r === pr && col <= pc)) {
+      throw new Error(`heatmap DOM order not monotonic by (row,col): (${pr},${pc}) then (${r},${col}) at "${c.key}"`);
+    }
+    pr = r;
+    pc = col;
+  }
+  // byProject rows: document order NON-decreasing by rowIndex (each row emits 3 cells sharing its rank).
+  let prRow = -1;
+  for (const c of cells) {
+    if (c.carrier !== 'row' || c.extra?.rowIndex === undefined) continue;
+    const r = Number(c.extra.rowIndex);
+    if (!Number.isInteger(r) || r < 0) throw new Error(`breakdown-row "${c.key}" has a non-integer data-row-index`);
+    if (r < prRow) throw new Error(`byProject DOM order not monotonic by row-index: ${prRow} then ${r} at "${c.key}"`);
+    prRow = r;
+  }
+}
 function readDomCells(root: HTMLElement): Cell[] {
   const scope = within(root);
   const out: Cell[] = [];
@@ -960,12 +992,14 @@ function readDomCells(root: HTMLElement): Cell[] {
   for (const n of scope.queryAllByTestId('heatmap-cell')) {
     const key = `${attr(n, 'data-cell-row')}|${attr(n, 'data-cell-bucket')}`;
     visible('heatmap', key, n);
-    // The intensity-to-COLOUR binding: the frozen class `intensity-<bin>` must be present, so the
-    // VISIBLE colour (a CSS class — jsdom has no computed layout) is bound to the recomputed bin, not
-    // just the data-intensity attribute (Codex 0-E #8).
+    // The intensity-to-COLOUR binding: the cell must carry EXACTLY ONE `intensity-<n>` class and it must
+    // equal `intensity-<data-intensity>`, so the VISIBLE colour (a CSS class — jsdom has no computed
+    // layout) is bound to the recomputed bin and can't be styled by a second conflicting class
+    // (Codex 0-E r2 #4).
     const bin = attr(n, 'data-intensity');
-    if (!n.classList.contains(`intensity-${bin}`)) {
-      throw new Error(`heatmap-cell "${key}" data-intensity=${bin} but missing frozen class "intensity-${bin}" (class="${n.className}")`);
+    const intensityClasses = [...n.classList].filter((c) => /^intensity-\d+$/.test(c));
+    if (intensityClasses.length !== 1 || intensityClasses[0] !== `intensity-${bin}`) {
+      throw new Error(`heatmap-cell "${key}" must carry EXACTLY the class "intensity-${bin}" (matching data-intensity) — got [${intensityClasses.join(', ')}]`);
     }
     out.push({
       carrier: 'heatmap',
@@ -1002,6 +1036,7 @@ function readDomCells(root: HTMLElement): Cell[] {
       out.push({ carrier: 'empty', key: section ? `${key}:${section}` : key, value: section, kind: 'empty' });
     }
   }
+  assertDomOrder(out);
   return out;
 }
 
@@ -1302,6 +1337,19 @@ async function runScopeMatrix(live: LivePanel[]): Promise<CategoryResult & { app
           },
           { timeout: 2000 },
         );
+        // Beyond persistence: the destination must render the CORRECT content for the shared scope —
+        // compare its DOM to the recompute for (All Time, Codex). A nav-specific bug that renders an
+        // empty/stale grid where data should exist (or the reverse) is caught, not waved through by a
+        // mere "something rendered" check (Codex r2 #3). RANGE_PROBE/SOURCE_PROBE == 'all'/'codex'.
+        const toSpec = resolveSpec(to, fails);
+        if (toSpec) {
+          compareCells(
+            `scope-matrix ${from.key}->${to.key} @ all/codex`,
+            toSpec.recompute(RECORDS, RATE_CARD, ASOF, 'all', 'codex'),
+            readDomCells(requirePanelRoot(to.key)),
+            fails,
+          );
+        }
       } catch (e) {
         fails.push(`${from.key}->${to.key}: ${String((e as Error)?.message ?? e)}`);
       } finally {
@@ -1366,49 +1414,38 @@ function runHeatmapModeOracle(live: LivePanel[]): CategoryResult & { applicable:
   const spec = resolveSpec(hm, fails);
   if (!spec) return { ok: false, fails, panelsChecked: ['contributionHeatmap'], applicable: true };
 
-  // (a) value-equality over the FULL (range x source) matrix x every mode. week/month/$ must be right
-  // for EVERY scope — a smaller matrix could hide a wrong unprobed pair (Codex r0-E #6).
+  // Value-equality AND rate-card coupling over the FULL (range x source) matrix x every mode, via ONE
+  // uniform check: DOM == recompute(card), for card in [base, ...scaled]. Base card = value equality;
+  // a scaled card = coupling (cost cells x k, token cells invariant, intensity bins preserved since
+  // scaling preserves rank, AND the cell SET unchanged — compareCells is total). EVERY (range, source,
+  // mode) gets the base card + one representative factor, so no scope/mode can hide a wrong value OR a
+  // cost path that ignores the card (Codex r2 #2); the representative subset additionally sweeps ALL
+  // factors for multi-point linearity. Card-linearity is scope-independent (one normalizeCost pipeline),
+  // so the single-factor full sweep + full-factor subset is a complete cost proof without 16x4 renders.
   const fullStates = RANGE_KEYS.flatMap((range) => SOURCE_KEYS.map((source) => ({ label: `${range}/${source}`, range, source })));
+  const inSubset = (sc: { range: RangeKey; source: SourceKey }): boolean =>
+    HEATMAP_SCOPES.some((s) => s.range === sc.range && s.source === sc.source);
   for (const sc of fullStates) {
+    const factors = inSubset(sc) ? FACTORS : FACTORS.slice(0, 1);
+    const cards: Array<{ card: RateCard; tag: string }> = [
+      { card: RATE_CARD, tag: 'x1' },
+      ...factors.map((k) => ({ card: scaleCardInline(RATE_CARD, k), tag: `x${k}` })),
+    ];
     for (const m of HEATMAP_MODES) {
-      try {
-        const dom = renderHeatmapMode(spec, sc, m, RATE_CARD, fails);
-        cleanup();
-        if (dom) {
-          compareCells(
-            `heatmap [${sc.label} ${m.bl}/${m.ml}]`,
-            recomputeContributionHeatmap(RECORDS, RATE_CARD, ASOF, sc.range, sc.source, m.bucket, m.metric),
-            dom,
-            fails,
-          );
-        }
-      } catch (e) {
-        fails.push(`heatmap value [${sc.label} ${m.bl}/${m.ml}]: threw ${String((e as Error)?.message ?? e)}`);
-        cleanup();
-      }
-    }
-  }
-  // (b) rate-card coupling over a representative subset x every mode: render with the SCALED card and
-  // assert the WHOLE grid EQUALS recompute(scaledCard) via compareCells — so cost cells scale by k,
-  // token cells are invariant, intensity bins are preserved (scaling preserves rank), AND the cell SET
-  // is unchanged (no dropped/added cell can hide). The generic coupling oracle skips the heatmap.
-  for (const sc of HEATMAP_SCOPES) {
-    for (const m of HEATMAP_MODES) {
-      for (const k of FACTORS) {
+      for (const { card, tag } of cards) {
         try {
-          const card = scaleCardInline(RATE_CARD, k);
           const dom = renderHeatmapMode(spec, sc, m, card, fails);
           cleanup();
           if (dom) {
             compareCells(
-              `heatmap coupling [${sc.label} ${m.bl}/${m.ml}] x${k}`,
+              `heatmap [${sc.label} ${m.bl}/${m.ml} ${tag}]`,
               recomputeContributionHeatmap(RECORDS, card, ASOF, sc.range, sc.source, m.bucket, m.metric),
               dom,
               fails,
             );
           }
         } catch (e) {
-          fails.push(`heatmap coupling [${sc.label} ${m.bl}/${m.ml}] x${k}: threw ${String((e as Error)?.message ?? e)}`);
+          fails.push(`heatmap [${sc.label} ${m.bl}/${m.ml} ${tag}]: threw ${String((e as Error)?.message ?? e)}`);
           cleanup();
         }
       }
@@ -1469,17 +1506,57 @@ function runHeatmapInteractionOracle(live: LivePanel[]): CategoryResult & { appl
         assertVisibleConsistent('row', key, kind, value, n);
         return { carrier: 'row' as Carrier, key, value, kind };
       });
-  // The runbook contract is "click OR Enter/Space" — assert BOTH a mouse and a keyboard activation
-  // reveal the breakdown (Codex 0-E #10: a mouse-only cell must fail), on a focusable button element.
-  const activations: ReadonlyArray<[string, (c: Element) => void]> = [
-    ['click', (c) => fireEvent.click(c)],
-    ['Enter', (c) => fireEvent.keyDown(c, { key: 'Enter', code: 'Enter' })],
-    ['Space', (c) => fireEvent.keyDown(c, { key: ' ', code: 'Space' })],
-  ];
+  // The runbook contract is "click OR Enter/Space". A NATIVE <button> is keyboard-accessible by spec
+  // (the browser fires click on Enter/Space; jsdom does NOT synthesize that, so firing keydown at it
+  // would false-reject a correct onClick button — Codex r2 #6). A role=button element must carry its
+  // OWN key handler, so for it we require Enter AND Space to reveal the breakdown. Both must truly focus.
   for (const m of modes) {
     for (const wantSection of ['project', 'tool'] as const) {
-      for (const [method, activate] of activations) {
-        const label = `heatmap interaction [${m.ml}/${wantSection} via ${method}]`;
+      const base = `heatmap interaction [${m.ml}/${wantSection}]`;
+      // First render: classify the cell (native button vs role=button) + assert it is a real tab stop.
+      // An IIFE so the classification's own render is always cleaned up before the activation re-renders.
+      const plan = ((): { project: string; bucket: string; methods: Array<[string, (c: Element) => void]> } | null => {
+        try {
+          if (!renderHeatmapMode(spec, { label: 'all/all', range: 'all', source: 'all' }, m, RATE_CARD, fails)) return null;
+          const cell = within(requirePanelRoot('contributionHeatmap'))
+            .queryAllByTestId('heatmap-cell')
+            .find((c) => c.getAttribute('data-cell-section') === wantSection && isIntString(attr(c, 'data-cell-value')) && BigInt(attr(c, 'data-cell-value')) !== 0n);
+          if (!cell) {
+            fails.push(`${base}: no nonzero ${wantSection} cell to focus`);
+            return null;
+          }
+          const tag = cell.tagName.toLowerCase();
+          const role = cell.getAttribute('role');
+          const tabindex = cell.getAttribute('tabindex');
+          const isNativeButton = tag === 'button';
+          // role=button needs an EXPLICIT non-negative tabindex (missing tabindex is NOT a tab stop —
+          // Number(null) coercing to 0 must not slip through, Codex r2 #5).
+          const isRoleButton = role === 'button' && tabindex !== null && /^\d+$/.test(tabindex.trim());
+          if (!isNativeButton && !isRoleButton) {
+            fails.push(`${base}: focused cell is not keyboard-operable (tag=${tag}, role=${role}, tabindex=${tabindex}) — needs <button> or role=button + tabindex>=0`);
+            return null;
+          }
+          // It must actually TAKE focus — a real tab stop, not just the right attributes.
+          (cell as HTMLElement).focus();
+          if (cell.ownerDocument.activeElement !== cell) {
+            fails.push(`${base}: cell did not receive focus on .focus() — not a real tab stop`);
+            return null;
+          }
+          const methods: Array<[string, (c: Element) => void]> = [['click', (c) => fireEvent.click(c)]];
+          if (isRoleButton) {
+            methods.push(['Enter', (c) => fireEvent.keyDown(c, { key: 'Enter', code: 'Enter' })]);
+            methods.push(['Space', (c) => fireEvent.keyDown(c, { key: ' ', code: 'Space' })]);
+          }
+          return { project: attr(cell, 'data-cell-row'), bucket: attr(cell, 'data-cell-bucket'), methods };
+        } finally {
+          cleanup();
+        }
+      })();
+      if (!plan) continue;
+      const p = plan;
+      // Each activation on a FRESH render (activation toggles the expanded state).
+      for (const [method, activate] of p.methods) {
+        const label = `${base} via ${method}`;
         try {
           if (!renderHeatmapMode(spec, { label: 'all/all', range: 'all', source: 'all' }, m, RATE_CARD, fails)) {
             cleanup();
@@ -1487,28 +1564,17 @@ function runHeatmapInteractionOracle(live: LivePanel[]): CategoryResult & { appl
           }
           const cell = within(requirePanelRoot('contributionHeatmap'))
             .queryAllByTestId('heatmap-cell')
-            .find((c) => c.getAttribute('data-cell-section') === wantSection && isIntString(attr(c, 'data-cell-value')) && BigInt(attr(c, 'data-cell-value')) !== 0n);
+            .find((c) => attr(c, 'data-cell-row') === p.project && attr(c, 'data-cell-bucket') === p.bucket);
           if (!cell) {
-            fails.push(`${label}: no nonzero ${wantSection} cell to focus`);
+            fails.push(`${label}: target cell ${p.project}|${p.bucket} not found on re-render`);
             cleanup();
             continue;
           }
-          // Keyboard-operable: a native <button> (Enter/Space work), or role=button with a focusable
-          // tabindex — never a bare mouse-only <div>.
-          const tag = cell.tagName.toLowerCase();
-          const focusable = tag === 'button' || (cell.getAttribute('role') === 'button' && Number(cell.getAttribute('tabindex')) >= 0);
-          if (!focusable) {
-            fails.push(`${label}: focused cell is not a keyboard-operable button (tag=${tag}, role=${cell.getAttribute('role')}, tabindex=${cell.getAttribute('tabindex')})`);
-            cleanup();
-            continue;
-          }
-          const cellProject = attr(cell, 'data-cell-row');
-          const cellBucket = attr(cell, 'data-cell-bucket');
           activate(cell);
           const got = readBreakdown();
-          const expected = recomputeCellBreakdown(RECORDS, RATE_CARD, ASOF, 'all', 'all', m.bucket, m.metric, cellProject, cellBucket);
+          const expected = recomputeCellBreakdown(RECORDS, RATE_CARD, ASOF, 'all', 'all', m.bucket, m.metric, p.project, p.bucket);
           if (expected.length === 0) fails.push(`${label}: focused a cell with no records`);
-          compareCells(`${label} ${cellProject}|${cellBucket}`, expected, got, fails);
+          compareCells(`${label} ${p.project}|${p.bucket}`, expected, got, fails);
         } catch (e) {
           fails.push(`${label}: threw ${String((e as Error)?.message ?? e)}`);
         } finally {
@@ -1629,18 +1695,20 @@ describe('frozen panel oracle (verifier-owned — the trusted panel gate)', () =
     expect(RESULT.scopeMatrix.fails).toEqual([]);
   });
 
+  // The heatmap blocks render the full (range x source) x mode x card matrix + the interaction sweep, so
+  // they need a generous timeout (they are dormant/vacuous until the panel goes live).
   it('heatmap-modes: contributionHeatmap matches the recompute across day/week/month x tokens/$ (+ coupling)', () => {
     RESULT.heatmapModes = runHeatmapModeOracle(LIVE);
     expect(RESULT.heatmapModes.fails).toEqual([]);
-  });
+  }, 180_000);
 
   it('heatmap-interaction: focus/expand reveals the source|model breakdown recomputed from the cell', () => {
     RESULT.heatmapInteraction = runHeatmapInteractionOracle(LIVE);
     expect(RESULT.heatmapInteraction.fails).toEqual([]);
-  });
+  }, 60_000);
 
   it('heatmap-perturbation: a token bump moves exactly its own cell by the delta, no others', () => {
     RESULT.heatmapPerturbation = runHeatmapPerturbationOracle(LIVE);
     expect(RESULT.heatmapPerturbation.fails).toEqual([]);
-  });
+  }, 60_000);
 });
