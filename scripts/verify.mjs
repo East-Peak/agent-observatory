@@ -778,7 +778,7 @@ const PROJECT_GATES = [
 function registryEquals(a, b) {
   const ak = Object.keys(a).sort();
   const bk = Object.keys(b).sort();
-  if (ak.join(' ') !== bk.join(' ')) return false;
+  if (ak.join('\u0000') !== bk.join('\u0000')) return false;
   return ak.every((k) => a[k]?.kind === b[k]?.kind && a[k]?.label === b[k]?.label);
 }
 
@@ -939,6 +939,8 @@ const PANEL_MODULE_BINDING = {
   bySourceModel: { route: '/by-source-model', dir: 'by-source-model' },
   cacheEfficiency: { route: '/cache-efficiency', dir: 'cache-efficiency' },
   activityFeed: { route: '/activity-feed', dir: 'activity-feed' },
+  contributionHeatmap: { route: '/contribution', dir: 'contribution-heatmap' },
+  byProject: { route: '/by-project', dir: 'by-project' },
 };
 function livePanels(cfg) {
   return Object.entries(cfg.panels)
@@ -1200,10 +1202,21 @@ function pipelineCouplingCheck(live, oracle) {
     record('pipeline-coupling', false, 'frozen panel oracle produced no coupling result — see .verify-logs/panel-oracle.log');
     return;
   }
-  const gap = oracleCoverageGap(live, c);
+  // contributionHeatmap's DEFAULT mode is Tokens (no cost cell), so the GENERIC coupling oracle skips
+  // it; its cost-scaling + token-invariance are proven per-mode by the dedicated heatmap-modes oracle.
+  // So it is exempt from the generic coverage gap, but IF live it must have a clean heatmap-modes result.
+  const HEATMAP = 'contributionHeatmap';
+  const gap = oracleCoverageGap(live.filter((p) => p.key !== HEATMAP), c);
   if (gap.length) {
     record('pipeline-coupling', false, `oracle did not couple-check live panel(s): ${gap.join(', ')}`);
     return;
+  }
+  if (live.some((p) => p.key === HEATMAP)) {
+    const hm = oracle.data ? oracle.data.heatmapModes : null;
+    if (!hm || hm.applicable !== true || hm.ok !== true) {
+      record('pipeline-coupling', false, `contributionHeatmap coupling not proven by heatmap-modes: ${((hm && hm.fails) ?? ['no heatmap-modes result']).slice(0, 2).join('; ')}`);
+      return;
+    }
   }
   record(
     'pipeline-coupling',

@@ -14,8 +14,9 @@
  * in via the config, so the frozen file type-checks at the zero-panel baseline and works
  * for any future panel. `describeLivePanel` proves, reading the RAW house-style values
  * (never the rounded display text):
- *   1. POPULATED   — >=1 `[data-testid="panel-metric"]` of a numeric `data-value-kind`
- *                    whose RAW `data-metric-value` parses (BigInt) to a non-zero integer;
+ *   1. POPULATED   — >=1 numeric `[data-testid="panel-metric"]` (RAW `data-metric-value`) OR
+ *                    `[data-testid="heatmap-cell"]` (RAW `data-cell-value`) parsing to a non-zero
+ *                    integer (the colour heatmap has no metric carriers — its data is the grid);
  *   2. PROVENANCE  — a real generated label the caller names actually renders;
  *   3. CLEAN COPY  — no stub / placeholder / off-house-style text;
  *   4. TIME-RANGE  — the range filter exposes Last 7 Days / Last 30 Days / This Month /
@@ -39,6 +40,10 @@
  *   - series point -> data-testid="series-point" + data-point-value + data-value-kind;
  *   - activity item -> data-testid="feed-item" + data-feed-key/-date/-source/-project/
  *     -cost-pico (cost-kind) /-session;
+ *   - byProject row -> data-testid="breakdown-row" + data-row-key/-value/-tokens/-share (+ data-share-kind)
+ *     + data-row-index (rank); heatmap cell -> data-testid="heatmap-cell" + data-cell-row/-bucket/-section/
+ *     -value/-value-kind/-intensity + data-cell-row-index/-col-index + class "intensity-<bin>"; per-section
+ *     empty -> data-testid="byproject-empty"/"heatmap-empty" + data-empty-section/-reason (visible prose);
  *   - time-range control -> data-testid="range-filter"; each option -> data-testid="range-option"
  *     with text one of Last 7 Days / Last 30 Days / This Month / All Time; the ACTIVE one
  *     carries aria-current="true";
@@ -96,6 +101,23 @@ function numericMetricValues(): bigint[] {
     .map((v) => BigInt(v));
 }
 
+/** RAW integer values behind contribution-heatmap cells. A colour cell carries no headline metric —
+ *  its figure lives on data-cell-value — so a panel whose only data surface is the grid still counts
+ *  as populated. */
+function heatmapCellValues(): bigint[] {
+  return screen
+    .queryAllByTestId('heatmap-cell')
+    .map((n) => n.getAttribute('data-cell-value'))
+    .filter((v): v is string => v !== null && /^-?\d+$/.test(v))
+    .map((v) => BigInt(v));
+}
+
+/** Every raw numeric value a panel exposes as its "populated" evidence — headline metrics AND heatmap
+ *  cells — so the check works for a metric panel (spendOverview…) and the metric-less colour heatmap. */
+function numericPanelValues(): bigint[] {
+  return [...numericMetricValues(), ...heatmapCellValues()];
+}
+
 /**
  * Stable raw signature in DOM order over every raw value carrier (metrics, breakdown
  * rows, series points, and feed cost) — so a real re-filter is never masked by formatting.
@@ -114,16 +136,19 @@ function rawSignature(): string {
   for (const n of screen.queryAllByTestId('feed-item')) {
     parts.push(`f:${n.getAttribute('data-feed-key') ?? ''}=${n.getAttribute('data-feed-cost-pico') ?? '∅'}`);
   }
+  for (const n of screen.queryAllByTestId('heatmap-cell')) {
+    parts.push(`h:${n.getAttribute('data-cell-row') ?? ''}|${n.getAttribute('data-cell-bucket') ?? ''}=${n.getAttribute('data-cell-value') ?? '∅'}`);
+  }
   return parts.join('|');
 }
 
 function expectPopulated(where: string): void {
-  const vals = numericMetricValues();
+  const vals = numericPanelValues();
   if (vals.length === 0) {
-    throw new Error(`${where}: no panel-metric carries a numeric data-metric-value`);
+    throw new Error(`${where}: no panel-metric or heatmap-cell carries a numeric value`);
   }
   if (!vals.some((v) => v !== 0n)) {
-    throw new Error(`${where}: every panel-metric value is zero — empty screen`);
+    throw new Error(`${where}: every panel value is zero — empty screen`);
   }
 }
 
@@ -157,7 +182,9 @@ function renderPanel(cfg: LivePanelConfig): void {
 }
 
 async function expectPopulatedAndClean(cfg: LivePanelConfig): Promise<void> {
-  await screen.findAllByTestId('panel-metric');
+  // Wait for the panel's data surface to land — headline metrics OR heatmap cells (the colour grid
+  // has no metric carriers), so this works for every panel shape without assuming panel-metric.
+  await waitFor(() => expect(numericPanelValues().length).toBeGreaterThan(0), { timeout: 2000 });
   expectPopulated('initial render');
   // Provenance: a real generated name/label flowed through the default datasource.
   expect((await screen.findAllByText(cfg.provenance)).length).toBeGreaterThan(0);
@@ -181,7 +208,7 @@ async function selectAndSettle(
     () => {
       const active = activeLabel(filterTestId, optionTestId);
       expect(active !== null && active.includes(norm(label))).toBe(true);
-      expect(numericMetricValues().some((v) => v !== 0n)).toBe(true);
+      expect(numericPanelValues().some((v) => v !== 0n)).toBe(true);
     },
     { timeout: 2000 },
   );
@@ -203,7 +230,7 @@ async function selectAndSettleDifferentFrom(
     () => {
       const active = activeLabel(filterTestId, optionTestId);
       expect(active !== null && active.includes(norm(label))).toBe(true);
-      expect(numericMetricValues().some((v) => v !== 0n)).toBe(true);
+      expect(numericPanelValues().some((v) => v !== 0n)).toBe(true);
       expect(rawSignature()).not.toBe(prevSig);
     },
     { timeout: 2000 },

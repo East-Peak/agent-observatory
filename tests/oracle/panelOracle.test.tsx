@@ -379,11 +379,15 @@ function recomputeByProject(
       return a.projectKey < b.projectKey ? -1 : a.projectKey > b.projectKey ? 1 : 0;
     });
   const cells: Cell[] = [{ carrier: 'metric', key: 'total-cost', value: totalCost.toString(), kind: 'cost' }];
-  for (const r of rows) {
-    cells.push({ carrier: 'row', key: r.projectKey, value: r.cost.toString(), kind: 'cost' });
-    cells.push({ carrier: 'row', key: `${r.projectKey}#tokens`, value: String(r.tokens), kind: 'tokens' });
-    cells.push({ carrier: 'row', key: `${r.projectKey}#share`, value: String(r.shareBp), kind: 'percent' });
-  }
+  // The leaderboard ORDER (repos by effort desc, then Unattributed) is part of the contract, so pin
+  // each row's rank via data-row-index — compareCells is an unordered multiset and would otherwise let
+  // the panel render Unattributed first (Codex 0-E #5).
+  rows.forEach((r, i) => {
+    const idx = String(i);
+    cells.push({ carrier: 'row', key: r.projectKey, value: r.cost.toString(), kind: 'cost', extra: { rowIndex: idx } });
+    cells.push({ carrier: 'row', key: `${r.projectKey}#tokens`, value: String(r.tokens), kind: 'tokens', extra: { rowIndex: idx } });
+    cells.push({ carrier: 'row', key: `${r.projectKey}#share`, value: String(r.shareBp), kind: 'percent', extra: { rowIndex: idx } });
+  });
   return cells;
 }
 
@@ -444,9 +448,9 @@ function recomputeContributionHeatmap(
   const valueOf = (r: UsageRecord): bigint => (metric === 'tokens' ? BigInt(tokenTotal(r)) : normalizeCost(r, card));
 
   const effort = new Map<string, number>(); // project -> total tokens (row ordering)
-  const cellVal = new Map<string, bigint>(); // `${project} ${bucketId}` -> value
+  const cellVal = new Map<string, bigint>(); // `${project}\u0000${bucketId}` -> value
   for (const r of inCur) {
-    const ck = `${r.project} ${bucketOfInline(r.date, bucket)}`;
+    const ck = `${r.project}\u0000${bucketOfInline(r.date, bucket)}`;
     cellVal.set(ck, (cellVal.get(ck) ?? 0n) + valueOf(r));
     effort.set(r.project, (effort.get(r.project) ?? 0) + tokenTotal(r));
   }
@@ -466,29 +470,36 @@ function recomputeContributionHeatmap(
 
   const kind = metric === 'tokens' ? 'tokens' : 'cost';
   const cells: Cell[] = [];
-  const emitSection = (rows: string[], section: 'project' | 'tool'): void => {
+  // Global row rank across BOTH sections (project rows first, then the Tools strip) pins section order
+  // + row order; colIndex pins the chronological bucket order. compareCells is unordered, so without
+  // these a wrong visual order would pass (Codex 0-E #5); value + intensity + indices fix each cell's
+  // figure, colour, and position.
+  let rowIndex = 0;
+  for (const { rows, section } of [
+    { rows: projectRows, section: 'project' as const },
+    { rows: toolRows, section: 'tool' as const },
+  ]) {
     if (rows.length === 0) {
       cells.push({ carrier: 'empty', key: `heatmap:${section}`, value: section, kind: 'empty' });
-      return;
+      continue;
     }
     const sectionValues: bigint[] = [];
-    for (const p of rows) for (const b of buckets) sectionValues.push(cellVal.get(`${p} ${b}`) ?? 0n);
+    for (const p of rows) for (const b of buckets) sectionValues.push(cellVal.get(`${p}\u0000${b}`) ?? 0n);
     const scale = quantileScale(sectionValues);
     for (const p of rows) {
-      for (const b of buckets) {
-        const v = cellVal.get(`${p} ${b}`) ?? 0n;
+      const rIdx = String(rowIndex++);
+      buckets.forEach((b, colIdx) => {
+        const v = cellVal.get(`${p}\u0000${b}`) ?? 0n;
         cells.push({
           carrier: 'heatmap',
           key: `${p}|${b}`,
           value: v.toString(),
           kind,
-          extra: { section, intensity: String(scale.binOf(v)) },
+          extra: { section, intensity: String(scale.binOf(v)), rowIndex: rIdx, colIndex: String(colIdx) },
         });
-      }
+      });
     }
-  };
-  emitSection(projectRows, 'project');
-  emitSection(toolRows, 'tool');
+  }
   return cells;
 }
 
@@ -898,20 +909,25 @@ function readDomCells(root: HTMLElement): Cell[] {
     const kind = attr(n, 'data-value-kind');
     visible('row', key, n);
     assertVisibleConsistent('row', key, kind, value, n);
-    out.push({ carrier: 'row', key, value, kind });
-    // A byProject row additionally carries token volume + token-share-of-grid on the SAME visible row
-    // (absent on bySourceModel / heatmap-breakdown rows, so this is backward-compatible). Read each as
-    // its own keyed cell so the value oracle pins them and the coupling oracle proves them invariant.
+    // A byProject row declares its rank via data-row-index (pins the leaderboard ORDER, which the
+    // multiset compare can't). Absent on bySourceModel / heatmap-breakdown rows -> no rowIndex in the
+    // recompute for those either, so this stays backward-compatible.
+    const rowIndex = n.getAttribute('data-row-index');
+    const rowExtra = rowIndex !== null ? { rowIndex } : undefined;
+    out.push({ carrier: 'row', key, value, kind, ...(rowExtra ? { extra: rowExtra } : {}) });
+    // A byProject row additionally carries token volume + token-share-of-grid on the SAME visible row.
+    // Read each as its own keyed cell so the value oracle pins them and the coupling oracle proves them
+    // invariant; each inherits the same rank.
     const tokens = n.getAttribute('data-row-tokens');
     if (tokens !== null) {
       assertVisibleConsistent('row', `${key}#tokens`, 'tokens', tokens, n);
-      out.push({ carrier: 'row', key: `${key}#tokens`, value: tokens, kind: 'tokens' });
+      out.push({ carrier: 'row', key: `${key}#tokens`, value: tokens, kind: 'tokens', ...(rowExtra ? { extra: rowExtra } : {}) });
     }
     const share = n.getAttribute('data-row-share');
     if (share !== null) {
       const shareKind = attr(n, 'data-share-kind');
       assertVisibleConsistent('row', `${key}#share`, shareKind, share, n);
-      out.push({ carrier: 'row', key: `${key}#share`, value: share, kind: shareKind });
+      out.push({ carrier: 'row', key: `${key}#share`, value: share, kind: shareKind, ...(rowExtra ? { extra: rowExtra } : {}) });
     }
   }
   for (const n of scope.queryAllByTestId('series-point')) {
@@ -944,12 +960,24 @@ function readDomCells(root: HTMLElement): Cell[] {
   for (const n of scope.queryAllByTestId('heatmap-cell')) {
     const key = `${attr(n, 'data-cell-row')}|${attr(n, 'data-cell-bucket')}`;
     visible('heatmap', key, n);
+    // The intensity-to-COLOUR binding: the frozen class `intensity-<bin>` must be present, so the
+    // VISIBLE colour (a CSS class — jsdom has no computed layout) is bound to the recomputed bin, not
+    // just the data-intensity attribute (Codex 0-E #8).
+    const bin = attr(n, 'data-intensity');
+    if (!n.classList.contains(`intensity-${bin}`)) {
+      throw new Error(`heatmap-cell "${key}" data-intensity=${bin} but missing frozen class "intensity-${bin}" (class="${n.className}")`);
+    }
     out.push({
       carrier: 'heatmap',
       key,
       value: attr(n, 'data-cell-value'),
       kind: attr(n, 'data-value-kind'),
-      extra: { section: attr(n, 'data-cell-section'), intensity: attr(n, 'data-intensity') },
+      extra: {
+        section: attr(n, 'data-cell-section'),
+        intensity: bin,
+        rowIndex: attr(n, 'data-cell-row-index'),
+        colIndex: attr(n, 'data-cell-col-index'),
+      },
     });
   }
   // Per-section empty state (byProject under a tool-only scope; the heatmap project grid / tool strip
@@ -965,6 +993,11 @@ function readDomCells(root: HTMLElement): Cell[] {
       const section = attr(n, 'data-empty-section');
       if (norm(attr(n, 'data-empty-reason')) === '') {
         throw new Error(`${testid} (section "${section}") has no data-empty-reason — an empty state must say why`);
+      }
+      // The empty state must also SHOW prose to the user, not just carry a hidden attribute (Codex 0-E
+      // #12) — visible-only text (hidden descendants excluded), non-blank.
+      if (norm(visibleTextOf(n)) === '') {
+        throw new Error(`${testid} (section "${section}") renders no VISIBLE empty-state text — the reason is not shown`);
       }
       out.push({ carrier: 'empty', key: section ? `${key}:${section}` : key, value: section, kind: 'empty' });
     }
@@ -1253,9 +1286,16 @@ async function runScopeMatrix(live: LivePanel[]): Promise<CategoryResult & { app
         fireEvent.click(link);
         await waitFor(
           () => {
-            // Destination populated WITHIN its own panel root (not document-wide).
+            // Destination RENDERED WITHIN its own panel root (not document-wide). Under the tool-only
+            // SOURCE_PROBE (Codex) byProject is legitimately empty + the heatmap has no metric carrier,
+            // so "rendered" = any recognized value carrier OR a valid per-section empty state — not
+            // panel-metric specifically. Scope PERSISTENCE (the point of this matrix) is the two
+            // activeOptionLabel assertions below.
             const root = requirePanelRoot(to.key);
-            expect(within(root).queryAllByTestId('panel-metric').length).toBeGreaterThan(0);
+            const rendered = ['panel-metric', 'heatmap-cell', 'breakdown-row', 'series-point', 'feed-item', 'byproject-empty', 'heatmap-empty'].some(
+              (t) => within(root).queryAllByTestId(t).length > 0,
+            );
+            expect(rendered, `${to.key} rendered no recognized carrier/empty-state after nav`).toBe(true);
             // BOTH shared-scope dimensions survived the navigation.
             expect(activeOptionLabel('range-filter', 'range-option')).toBe(probedRange);
             expect(activeOptionLabel('source-filter', 'source-option')).toBe(probedSource);
@@ -1326,40 +1366,51 @@ function runHeatmapModeOracle(live: LivePanel[]): CategoryResult & { applicable:
   const spec = resolveSpec(hm, fails);
   if (!spec) return { ok: false, fails, panelsChecked: ['contributionHeatmap'], applicable: true };
 
-  for (const sc of HEATMAP_SCOPES) {
+  // (a) value-equality over the FULL (range x source) matrix x every mode. week/month/$ must be right
+  // for EVERY scope — a smaller matrix could hide a wrong unprobed pair (Codex r0-E #6).
+  const fullStates = RANGE_KEYS.flatMap((range) => SOURCE_KEYS.map((source) => ({ label: `${range}/${source}`, range, source })));
+  for (const sc of fullStates) {
     for (const m of HEATMAP_MODES) {
       try {
-        // (a) value-equality: the real toggled grid == the independent recompute for this exact mode.
         const dom = renderHeatmapMode(spec, sc, m, RATE_CARD, fails);
         cleanup();
-        if (!dom) continue;
-        const expected = recomputeContributionHeatmap(RECORDS, RATE_CARD, ASOF, sc.range, sc.source, m.bucket, m.metric);
-        compareCells(`heatmap [${sc.label} ${m.bl}/${m.ml}]`, expected, dom, fails);
-
-        // (b) rate-card coupling for THIS mode: in $ mode every cost cell scales by k; in Tokens mode
-        // every token cell is INVARIANT (tokens never move with the rate card) — the heatmap's coupling
-        // proof, since the generic coupling oracle skips it (default mode has no cost cell).
-        for (const k of FACTORS) {
-          const scaled = renderHeatmapMode(spec, sc, m, scaleCardInline(RATE_CARD, k), fails);
-          cleanup();
-          if (!scaled) continue;
-          const baseByKey = new Map(dom.map((c) => [keyOf(c), c]));
-          for (const c of scaled.filter((x) => x.carrier === 'heatmap')) {
-            const ref = baseByKey.get(keyOf(c));
-            if (!ref) {
-              fails.push(`heatmap [${sc.label} ${m.bl}/${m.ml}] x${k}: unexpected ${keyOf(c)}`);
-            } else if (m.metric === 'cost') {
-              if (!isIntString(c.value) || !isIntString(ref.value) || BigInt(c.value) !== BigInt(ref.value) * BigInt(k)) {
-                fails.push(`heatmap [${sc.label} ${m.bl}/$] x${k}: ${keyOf(c)} ${c.value} != ${ref.value}*${k}`);
-              }
-            } else if (c.value !== ref.value) {
-              fails.push(`heatmap [${sc.label} ${m.bl}/Tokens] x${k}: ${keyOf(c)} token cell moved (${c.value} != ${ref.value})`);
-            }
-          }
+        if (dom) {
+          compareCells(
+            `heatmap [${sc.label} ${m.bl}/${m.ml}]`,
+            recomputeContributionHeatmap(RECORDS, RATE_CARD, ASOF, sc.range, sc.source, m.bucket, m.metric),
+            dom,
+            fails,
+          );
         }
       } catch (e) {
-        fails.push(`heatmap [${sc.label} ${m.bl}/${m.ml}]: threw ${String((e as Error)?.message ?? e)}`);
+        fails.push(`heatmap value [${sc.label} ${m.bl}/${m.ml}]: threw ${String((e as Error)?.message ?? e)}`);
         cleanup();
+      }
+    }
+  }
+  // (b) rate-card coupling over a representative subset x every mode: render with the SCALED card and
+  // assert the WHOLE grid EQUALS recompute(scaledCard) via compareCells — so cost cells scale by k,
+  // token cells are invariant, intensity bins are preserved (scaling preserves rank), AND the cell SET
+  // is unchanged (no dropped/added cell can hide). The generic coupling oracle skips the heatmap.
+  for (const sc of HEATMAP_SCOPES) {
+    for (const m of HEATMAP_MODES) {
+      for (const k of FACTORS) {
+        try {
+          const card = scaleCardInline(RATE_CARD, k);
+          const dom = renderHeatmapMode(spec, sc, m, card, fails);
+          cleanup();
+          if (dom) {
+            compareCells(
+              `heatmap coupling [${sc.label} ${m.bl}/${m.ml}] x${k}`,
+              recomputeContributionHeatmap(RECORDS, card, ASOF, sc.range, sc.source, m.bucket, m.metric),
+              dom,
+              fails,
+            );
+          }
+        } catch (e) {
+          fails.push(`heatmap coupling [${sc.label} ${m.bl}/${m.ml}] x${k}: threw ${String((e as Error)?.message ?? e)}`);
+          cleanup();
+        }
       }
     }
   }
@@ -1405,42 +1456,64 @@ function runHeatmapInteractionOracle(live: LivePanel[]): CategoryResult & { appl
     { bucket: 'day', bl: 'Daily', metric: 'tokens', ml: 'Tokens' },
     { bucket: 'day', bl: 'Daily', metric: 'cost', ml: '$' },
   ] as const;
+  // Read the EXPANDED breakdown rows, requiring each to be VISIBLE (Codex 0-E #9: a hidden breakdown
+  // carrying correct attributes must not pass) and consistent, keyed source|model.
+  const readBreakdown = (): Cell[] =>
+    within(requirePanelRoot('contributionHeatmap'))
+      .queryAllByTestId('breakdown-row')
+      .map((n) => {
+        if (!isVisible(n)) throw new Error('expanded heatmap breakdown-row is hidden — the breakdown is not shown to the user');
+        const key = attr(n, 'data-row-key');
+        const value = attr(n, 'data-row-value');
+        const kind = attr(n, 'data-value-kind');
+        assertVisibleConsistent('row', key, kind, value, n);
+        return { carrier: 'row' as Carrier, key, value, kind };
+      });
+  // The runbook contract is "click OR Enter/Space" — assert BOTH a mouse and a keyboard activation
+  // reveal the breakdown (Codex 0-E #10: a mouse-only cell must fail), on a focusable button element.
+  const activations: ReadonlyArray<[string, (c: Element) => void]> = [
+    ['click', (c) => fireEvent.click(c)],
+    ['Enter', (c) => fireEvent.keyDown(c, { key: 'Enter', code: 'Enter' })],
+    ['Space', (c) => fireEvent.keyDown(c, { key: ' ', code: 'Space' })],
+  ];
   for (const m of modes) {
     for (const wantSection of ['project', 'tool'] as const) {
-      try {
-        if (!renderHeatmapMode(spec, { label: 'all/all', range: 'all', source: 'all' }, m, RATE_CARD, fails)) {
+      for (const [method, activate] of activations) {
+        const label = `heatmap interaction [${m.ml}/${wantSection} via ${method}]`;
+        try {
+          if (!renderHeatmapMode(spec, { label: 'all/all', range: 'all', source: 'all' }, m, RATE_CARD, fails)) {
+            cleanup();
+            continue;
+          }
+          const cell = within(requirePanelRoot('contributionHeatmap'))
+            .queryAllByTestId('heatmap-cell')
+            .find((c) => c.getAttribute('data-cell-section') === wantSection && isIntString(attr(c, 'data-cell-value')) && BigInt(attr(c, 'data-cell-value')) !== 0n);
+          if (!cell) {
+            fails.push(`${label}: no nonzero ${wantSection} cell to focus`);
+            cleanup();
+            continue;
+          }
+          // Keyboard-operable: a native <button> (Enter/Space work), or role=button with a focusable
+          // tabindex — never a bare mouse-only <div>.
+          const tag = cell.tagName.toLowerCase();
+          const focusable = tag === 'button' || (cell.getAttribute('role') === 'button' && Number(cell.getAttribute('tabindex')) >= 0);
+          if (!focusable) {
+            fails.push(`${label}: focused cell is not a keyboard-operable button (tag=${tag}, role=${cell.getAttribute('role')}, tabindex=${cell.getAttribute('tabindex')})`);
+            cleanup();
+            continue;
+          }
+          const cellProject = attr(cell, 'data-cell-row');
+          const cellBucket = attr(cell, 'data-cell-bucket');
+          activate(cell);
+          const got = readBreakdown();
+          const expected = recomputeCellBreakdown(RECORDS, RATE_CARD, ASOF, 'all', 'all', m.bucket, m.metric, cellProject, cellBucket);
+          if (expected.length === 0) fails.push(`${label}: focused a cell with no records`);
+          compareCells(`${label} ${cellProject}|${cellBucket}`, expected, got, fails);
+        } catch (e) {
+          fails.push(`${label}: threw ${String((e as Error)?.message ?? e)}`);
+        } finally {
           cleanup();
-          continue;
         }
-        const root = requirePanelRoot('contributionHeatmap');
-        const cell = within(root)
-          .queryAllByTestId('heatmap-cell')
-          .find((c) => c.getAttribute('data-cell-section') === wantSection && isIntString(attr(c, 'data-cell-value')) && BigInt(attr(c, 'data-cell-value')) !== 0n);
-        if (!cell) {
-          fails.push(`heatmap interaction [${m.ml}/${wantSection}]: no nonzero ${wantSection} cell to focus`);
-          cleanup();
-          continue;
-        }
-        const cellProject = attr(cell, 'data-cell-row');
-        const cellBucket = attr(cell, 'data-cell-bucket');
-        fireEvent.click(cell);
-        const liveRoot = requirePanelRoot('contributionHeatmap');
-        const got: Cell[] = within(liveRoot)
-          .queryAllByTestId('breakdown-row')
-          .map((n) => {
-            const key = attr(n, 'data-row-key');
-            const value = attr(n, 'data-row-value');
-            const kind = attr(n, 'data-value-kind');
-            assertVisibleConsistent('row', key, kind, value, n);
-            return { carrier: 'row', key, value, kind };
-          });
-        const expected = recomputeCellBreakdown(RECORDS, RATE_CARD, ASOF, 'all', 'all', m.bucket, m.metric, cellProject, cellBucket);
-        if (expected.length === 0) fails.push(`heatmap interaction [${m.ml}/${wantSection}]: focused a cell with no records`);
-        compareCells(`heatmap interaction [${m.ml}/${wantSection}] ${cellProject}|${cellBucket}`, expected, got, fails);
-      } catch (e) {
-        fails.push(`heatmap interaction [${m.ml}/${wantSection}]: threw ${String((e as Error)?.message ?? e)}`);
-      } finally {
-        cleanup();
       }
     }
   }
@@ -1469,28 +1542,31 @@ function runHeatmapPerturbationOracle(live: LivePanel[]): CategoryResult & { app
     getRateCard: () => RATE_CARD,
   });
   const targetKey = `${target.project}|${bucketOfInline(target.date, 'day')}`;
-  const valuesOf = (ds: DataSource): Map<string, string> => {
-    renderRoute(spec.route, { range: 'all', source: 'all' }, ds); // default Daily x Tokens
-    const cells = readDomCells(requirePanelRoot('contributionHeatmap')).filter((c) => c.carrier === 'heatmap');
-    cleanup();
-    return new Map(cells.map((c) => [c.key, c.value]));
-  };
   try {
-    const base = valuesOf(dsFor(RECORDS));
-    const pert = valuesOf(dsFor(perturbedRecords));
-    if (base.size !== pert.size) fails.push(`heatmap perturbation: cell count changed (${base.size} -> ${pert.size})`);
-    for (const [key, bv] of base) {
-      const pv = pert.get(key);
-      if (pv === undefined) {
-        fails.push(`heatmap perturbation: cell ${key} vanished`);
-      } else if (key === targetKey) {
-        if (!isIntString(bv) || !isIntString(pv) || BigInt(pv) !== BigInt(bv) + BigInt(DELTA)) {
-          fails.push(`heatmap perturbation: target ${key} ${pv} != ${bv}+${DELTA}`);
-        }
-      } else if (pv !== bv) {
-        fails.push(`heatmap perturbation: unrelated cell ${key} moved (${bv} -> ${pv})`);
+    // (1) The panel must MATCH the recompute over the PERTURBED data — values, intensity bins, AND
+    // indices (so a panel can't recompute token values from changed data while hardcoding stale
+    // colours/order). This is the value oracle over a DIFFERENT dataset -> proves the grid is data-derived.
+    renderRoute(spec.route, { range: 'all', source: 'all' }, dsFor(perturbedRecords)); // default Daily x Tokens
+    const perturbedDom = readDomCells(requirePanelRoot('contributionHeatmap'));
+    cleanup();
+    const perturbedExpected = recomputeContributionHeatmap(perturbedRecords, RATE_CARD, ASOF, 'all', 'all', 'day', 'tokens');
+    compareCells('heatmap perturbation (dom == recompute over perturbed data)', perturbedExpected, perturbedDom, fails);
+    // (2) Attribution property: bumping ONE record's tokens moves EXACTLY the target cell's VALUE by
+    // DELTA — every other cell value unchanged (intensity legitimately re-quantiles, so only values).
+    const baseExpected = recomputeContributionHeatmap(RECORDS, RATE_CARD, ASOF, 'all', 'all', 'day', 'tokens');
+    const baseVals = new Map(baseExpected.filter((c) => c.carrier === 'heatmap').map((c) => [c.key, c.value]));
+    let sawTarget = false;
+    for (const c of perturbedExpected.filter((c) => c.carrier === 'heatmap')) {
+      const bv = baseVals.get(c.key);
+      if (bv === undefined) continue;
+      if (c.key === targetKey) {
+        sawTarget = true;
+        if (BigInt(c.value) !== BigInt(bv) + BigInt(DELTA)) fails.push(`heatmap perturbation: target ${c.key} ${c.value} != ${bv}+${DELTA}`);
+      } else if (c.value !== bv) {
+        fails.push(`heatmap perturbation: unrelated cell ${c.key} moved (${bv} -> ${c.value})`);
       }
     }
+    if (!sawTarget) fails.push(`heatmap perturbation: target cell ${targetKey} not found in the grid`);
   } catch (e) {
     fails.push(`heatmap perturbation: threw ${String((e as Error)?.message ?? e)}`);
     cleanup();
