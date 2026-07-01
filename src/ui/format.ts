@@ -36,6 +36,11 @@ export function formatDeltaPercent(basisPoints: number): string {
   return `${sign}${pct.toFixed(1)}%`;
 }
 
+/** UNSIGNED basis points -> "45.0%" (a share, never a delta — no +/- sign). */
+export function formatPercent(basisPoints: number): string {
+  return `${(basisPoints / 100).toFixed(1)}%`;
+}
+
 /** A short, timezone-free month-day label for ISO dates (no Date / Intl). */
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export function formatMonthDay(iso: string): string {
