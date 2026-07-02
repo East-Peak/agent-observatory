@@ -22,8 +22,10 @@
  *   4. TIME-RANGE  — the range filter exposes Last 7 Days / Last 30 Days / This Month /
  *                    All Time; each renders populated; and a wide vs. narrow window yield
  *                    DIFFERENT raw signatures (a genuine re-filter, not a static panel);
- *   5. SOURCE      — the source filter exposes All / Claude Code / Codex / OpenClaw, and
- *                    narrowing the source changes the raw data AND keeps it populated.
+ *   5. SOURCE      — the source filter exposes All / Claude Code / Codex / OpenClaw, and the control
+ *                    genuinely applies — proven by EITHER narrowing to Claude Code changing the raw data
+ *                    (a source-aggregating panel) OR narrowing to a tool source (Codex) EMPTYING it to a
+ *                    per-section empty state (a project-centric, Claude-only panel where All == Claude).
  *
  * Every control assertion uses the mandatory async-settle pattern: after a click it
  * `waitFor`s until the option is ACTIVE (`aria-current="true"`) AND the panel is populated
@@ -240,6 +242,58 @@ async function selectAndSettleDifferentFrom(
   return rawSignature();
 }
 
+// Like selectAndSettleDifferentFrom, but reports success/failure instead of throwing: returns true once
+// the option is active AND the panel is populated AND the signature has LEFT `prevSig`; returns false if
+// that never happens within the window (the panel is invariant to this narrowing).
+async function settlesDifferentFrom(
+  filterTestId: string,
+  optionTestId: string,
+  label: string,
+  prevSig: string,
+): Promise<boolean> {
+  const opt = findOption(filterTestId, optionTestId, label);
+  if (!opt) throw new Error(`"${label}" option not found in ${filterTestId}`);
+  fireEvent.click(opt);
+  try {
+    await waitFor(
+      () => {
+        const active = activeLabel(filterTestId, optionTestId);
+        expect(active !== null && active.includes(norm(label))).toBe(true);
+        expect(numericPanelValues().some((v) => v !== 0n)).toBe(true);
+        expect(rawSignature()).not.toBe(prevSig);
+      },
+      { timeout: 2000 },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Prove the source control genuinely applies by narrowing to a source under which the panel is EMPTY:
+// after the click, the option is active, NO value carrier is populated, and a per-section empty state is
+// shown. This is the source-control proof for a project-CENTRIC panel whose grid is Claude-only (so
+// `All == Claude Code`): narrowing to a tool source (Codex) empties it.
+async function expectSourceEmpties(label: string): Promise<void> {
+  const opt = findOption('source-filter', 'source-option', label);
+  if (!opt) throw new Error(`source filter is missing the "${label}" option`);
+  fireEvent.click(opt);
+  await waitFor(
+    () => {
+      const active = activeLabel('source-filter', 'source-option');
+      expect(active !== null && active.includes(norm(label))).toBe(true);
+      // Genuinely empty: NO value carrier of ANY kind (metric / row / series / feed / heatmap — the full
+      // rawSignature), so a panel that merely hid its metrics while still showing rows can't pass here.
+      expect(rawSignature()).toBe('');
+      // AND a per-section empty state is shown (not just a blank panel).
+      const empties =
+        screen.queryAllByTestId('byproject-empty').length + screen.queryAllByTestId('heatmap-empty').length;
+      expect(empties).toBeGreaterThan(0);
+    },
+    { timeout: 2000 },
+  );
+}
+
 async function expectRangeFilterWorks(): Promise<void> {
   const control = await screen.findByTestId('range-filter');
   expect(within(control).queryAllByTestId('range-option').length).toBeGreaterThanOrEqual(4);
@@ -269,8 +323,16 @@ async function expectSourceFilterWorks(): Promise<void> {
     }
   }
   const allSig = await selectAndSettle('source-filter', 'source-option', 'All');
-  // Narrowing to a single source (Claude Code) must change the data away from All.
-  await selectAndSettleDifferentFrom('source-filter', 'source-option', 'Claude Code', allSig);
+  // The source control must genuinely re-filter — proven by EITHER of two mechanisms:
+  //  (1) a source-AGGREGATING panel changes its data when narrowed to Claude Code (drops Codex/OpenClaw); or
+  //  (2) a project-CENTRIC panel whose grid is Claude-only (Codex/OpenClaw are tools) is identical under All
+  //      vs Claude Code, so it is proven instead by narrowing to a tool-only source (Codex), which EMPTIES it.
+  // Every live panel must satisfy one; a panel with a dead source control satisfies neither.
+  const claudeChanged = await settlesDifferentFrom('source-filter', 'source-option', 'Claude Code', allSig);
+  if (!claudeChanged) {
+    await selectAndSettle('source-filter', 'source-option', 'All'); // reset to the full scope
+    await expectSourceEmpties('Codex');
+  }
   // Leave it on All so a subsequent control test starts from the full scope.
   await selectAndSettle('source-filter', 'source-option', 'All');
 }
