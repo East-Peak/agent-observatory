@@ -3,8 +3,9 @@ import { type RateCard, normalizeCost } from '@/domain/normalizeCost';
 import { aggregateByProjectPeriod, type ProjectPeriodCell } from '@/domain/aggregate';
 import { quantileScale } from '@/domain/intensity';
 import { bucketOf, bucketsInWindow, type BucketKind } from '@/domain/buckets';
-import { currentWindow, inWindow, type RangeKey } from '@/domain/dateRange';
-import { sourceOfKey, type SourceKey } from '@/domain/sources';
+import { type RangeKey } from '@/domain/dateRange';
+import { type SourceKey } from '@/domain/sources';
+import { scopeRecords } from '@/domain/scopeRecords';
 import { metaForKey, CODEX_PROJECT, OPENCLAW_PROJECT, UNATTRIBUTED } from '@/domain/projects';
 
 export type Bucket = BucketKind; // 'day' | 'week' | 'month'
@@ -49,16 +50,6 @@ const tokenTotal = (r: UsageRecord): number =>
   r.inputTokens + r.outputTokens + r.cacheCreationTokens + r.cacheReadTokens + r.reasoningTokens;
 const isTool = (p: string): boolean => p === CODEX_PROJECT || p === OPENCLAW_PROJECT;
 
-function earliestDate(records: readonly UsageRecord[], fallback: string): string {
-  let min: string | null = null;
-  for (const r of records) if (min === null || r.date < min) min = r.date;
-  return min ?? fallback;
-}
-
-function scoped(snapshot: Snapshot, source: SourceKey): readonly UsageRecord[] {
-  const want = sourceOfKey(source);
-  return want === null ? snapshot.records : snapshot.records.filter((r) => r.source === want);
-}
 
 /** Build one section's rows from the dense grid: value per cell in the active metric, per-section
  *  quantile intensity, and the global rowIndex continuing from `startRowIndex`. */
@@ -112,9 +103,7 @@ export function selectContributionHeatmap(
   bucket: Bucket,
   metric: Metric,
 ): ContributionHeatmapModel {
-  const rows = scoped(snapshot, source);
-  const window = currentWindow(range, snapshot.asOf, earliestDate(rows, snapshot.asOf));
-  const inCur = rows.filter((r) => inWindow(r.date, window));
+  const { records: inCur, window } = scopeRecords(snapshot.records, snapshot.asOf, range, source);
   const buckets = bucketsInWindow(window.from, window.to, bucket);
 
   const effort = new Map<string, number>();
@@ -153,11 +142,8 @@ export function selectCellBreakdown(
   projectKey: string,
   bucketId: string,
 ): HeatmapBreakdownRow[] {
-  const rows = scoped(snapshot, source);
-  const window = currentWindow(range, snapshot.asOf, earliestDate(rows, snapshot.asOf));
-  const cellRecs = rows.filter(
-    (r) => r.project === projectKey && inWindow(r.date, window) && bucketOf(r.date, bucket) === bucketId,
-  );
+  const { records } = scopeRecords(snapshot.records, snapshot.asOf, range, source);
+  const cellRecs = records.filter((r) => r.project === projectKey && bucketOf(r.date, bucket) === bucketId);
   const by = new Map<string, bigint>();
   for (const r of cellRecs) {
     const k = `${r.source}|${r.model}`;

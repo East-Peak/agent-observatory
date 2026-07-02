@@ -1,8 +1,9 @@
-import type { Snapshot, UsageRecord } from '@/domain/types';
+import type { Snapshot } from '@/domain/types';
 import { normalizeCost, type RateCard } from '@/domain/normalizeCost';
 import { aggregateByDay } from '@/domain/aggregate';
-import { currentWindow, priorWindow, inWindow, type RangeKey } from '@/domain/dateRange';
-import { sourceOfKey, type SourceKey } from '@/domain/sources';
+import { priorWindow, inWindow, type RangeKey } from '@/domain/dateRange';
+import { type SourceKey } from '@/domain/sources';
+import { scopeRecords } from '@/domain/scopeRecords';
 
 /** One day on the spend sparkline: normalized cost (pico-USD BigInt) + summed token volume. */
 export interface SpendPoint {
@@ -32,12 +33,6 @@ export interface SpendOverviewModel {
   readonly series: readonly SpendPoint[];
 }
 
-function earliestDate(records: readonly UsageRecord[], fallback: string): string {
-  let min: string | null = null;
-  for (const r of records) if (min === null || r.date < min) min = r.date;
-  return min ?? fallback;
-}
-
 /** Derive the spendOverview view-model from a snapshot + rate card for a (range, source) scope. */
 export function selectSpendOverview(
   snapshot: Snapshot,
@@ -45,17 +40,13 @@ export function selectSpendOverview(
   range: RangeKey,
   source: SourceKey,
 ): SpendOverviewModel {
-  const wantSource = sourceOfKey(source);
-  const scoped = wantSource === null ? snapshot.records : snapshot.records.filter((r) => r.source === wantSource);
-
-  const current = currentWindow(range, snapshot.asOf, earliestDate(scoped, snapshot.asOf));
-  const inCurrent = scoped.filter((r) => inWindow(r.date, current));
+  const { scoped, window, records: inCurrent } = scopeRecords(snapshot.records, snapshot.asOf, range, source);
   const days = aggregateByDay(inCurrent, card);
 
   const totalCostPico = days.reduce((a, d) => a + d.costPico, 0n);
   const totalTokens = days.reduce((a, d) => a + d.totalTokens, 0);
 
-  const prior = priorWindow(current);
+  const prior = priorWindow(window);
   const priorCostPico = scoped
     .filter((r) => inWindow(r.date, prior))
     .reduce((a, r) => a + normalizeCost(r, card), 0n);
@@ -64,8 +55,8 @@ export function selectSpendOverview(
   const deltaBasisPoints = priorCostPico === 0n ? 0 : Number((deltaCostPico * 10000n) / priorCostPico);
 
   return {
-    from: current.from,
-    to: current.to,
+    from: window.from,
+    to: window.to,
     totalCostPico,
     totalTokens,
     activeDays: days.length,

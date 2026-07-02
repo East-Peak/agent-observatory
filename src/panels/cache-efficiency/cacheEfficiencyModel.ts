@@ -1,8 +1,9 @@
-import type { Snapshot, UsageRecord } from '@/domain/types';
+import type { Snapshot } from '@/domain/types';
 import { type RateCard } from '@/domain/normalizeCost';
 import { cacheEfficiency } from '@/domain/aggregate';
-import { currentWindow, inWindow, type RangeKey } from '@/domain/dateRange';
-import { sourceOfKey, type SourceKey } from '@/domain/sources';
+import { type RangeKey } from '@/domain/dateRange';
+import { type SourceKey } from '@/domain/sources';
+import { scopeRecords } from '@/domain/scopeRecords';
 
 /** The cacheEfficiency view-model: scoped cache vs fresh-input token volume + pico-USD saved by caching. */
 export interface CacheEfficiencyModel {
@@ -14,30 +15,19 @@ export interface CacheEfficiencyModel {
   readonly savedPico: bigint;
 }
 
-function earliestDate(records: readonly UsageRecord[], fallback: string): string {
-  let min: string | null = null;
-  for (const r of records) if (min === null || r.date < min) min = r.date;
-  return min ?? fallback;
-}
-
-/** Derive the cacheEfficiency view-model for a `(range, source)` scope (same scoping the oracle uses). */
+/** Derive the cacheEfficiency view-model for a `(range, source)` scope (shared `scopeRecords` scoping). */
 export function selectCacheEfficiency(
   snapshot: Snapshot,
   card: RateCard,
   range: RangeKey,
   source: SourceKey,
 ): CacheEfficiencyModel {
-  const wantSource = sourceOfKey(source);
-  const scoped =
-    wantSource === null ? snapshot.records : snapshot.records.filter((r) => r.source === wantSource);
-
-  const current = currentWindow(range, snapshot.asOf, earliestDate(scoped, snapshot.asOf));
-  const inCurrent = scoped.filter((r) => inWindow(r.date, current));
+  const { records: inCurrent, window } = scopeRecords(snapshot.records, snapshot.asOf, range, source);
 
   const eff = cacheEfficiency(inCurrent, card);
   return {
-    from: current.from,
-    to: current.to,
+    from: window.from,
+    to: window.to,
     cacheReadTokens: eff.cacheReadTokens,
     cacheCreationTokens: eff.cacheCreationTokens,
     freshInputTokens: eff.freshInputTokens,

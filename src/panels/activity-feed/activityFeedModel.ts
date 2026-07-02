@@ -1,7 +1,8 @@
 import type { Snapshot, Source, UsageRecord } from '@/domain/types';
 import { normalizeCost, type RateCard } from '@/domain/normalizeCost';
-import { currentWindow, inWindow, type RangeKey } from '@/domain/dateRange';
-import { sourceOfKey, type SourceKey } from '@/domain/sources';
+import { type RangeKey } from '@/domain/dateRange';
+import { type SourceKey } from '@/domain/sources';
+import { scopeRecords } from '@/domain/scopeRecords';
 
 /** One activity-feed item: a single scoped `(source, date, model, project)` cell with its normalized cost. */
 export interface FeedItem {
@@ -31,18 +32,11 @@ function tokenTotal(r: UsageRecord): number {
   return r.inputTokens + r.outputTokens + r.cacheCreationTokens + r.cacheReadTokens + r.reasoningTokens;
 }
 
-function earliestDate(records: readonly UsageRecord[], fallback: string): string {
-  let min: string | null = null;
-  for (const r of records) if (min === null || r.date < min) min = r.date;
-  return min ?? fallback;
-}
-
 /**
- * Derive the activityFeed view-model for a `(range, source)` scope. Mirrors the oracle's scoping
- * exactly: filter by source, resolve the window from the source-scoped earliest date, keep in-window
- * records, then emit one item per record with its cost flowed through the injected rate card via
- * `normalizeCost` (so each item scales with the card). Items are ordered most-recent first for the
- * feed; the oracle compares them as an unordered multiset.
+ * Derive the activityFeed view-model for a `(range, source)` scope. Shares the `scopeRecords` scoping,
+ * then emits one item per record with its cost flowed through the injected rate card via `normalizeCost`
+ * (so each item scales with the card). Items are ordered most-recent first for the feed; the oracle
+ * compares them as an unordered multiset.
  */
 export function selectActivityFeed(
   snapshot: Snapshot,
@@ -50,12 +44,7 @@ export function selectActivityFeed(
   range: RangeKey,
   source: SourceKey,
 ): ActivityFeedModel {
-  const wantSource = sourceOfKey(source);
-  const scoped =
-    wantSource === null ? snapshot.records : snapshot.records.filter((r) => r.source === wantSource);
-
-  const current = currentWindow(range, snapshot.asOf, earliestDate(scoped, snapshot.asOf));
-  const inCurrent = scoped.filter((r) => inWindow(r.date, current));
+  const { records: inCurrent, window } = scopeRecords(snapshot.records, snapshot.asOf, range, source);
 
   const items: FeedItem[] = inCurrent.map((r) => ({
     key: `${r.source}|${r.date}|${r.model}|${r.project}`,
@@ -76,5 +65,5 @@ export function selectActivityFeed(
     return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
   });
 
-  return { from: current.from, to: current.to, totalCostPico, totalTokens, items: ordered };
+  return { from: window.from, to: window.to, totalCostPico, totalTokens, items: ordered };
 }
