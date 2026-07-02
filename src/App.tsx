@@ -9,6 +9,7 @@ import { CacheEfficiencyPanel } from '@/panels/cache-efficiency/CacheEfficiencyP
 import { ActivityFeedPanel } from '@/panels/activity-feed/ActivityFeedPanel';
 import { ByProjectPanel } from '@/panels/by-project/ByProjectPanel';
 import { ContributionHeatmapPanel } from '@/panels/contribution-heatmap/ContributionHeatmapPanel';
+import { cn } from '@/lib/utils';
 
 /**
  * The live panels wired into the shell. Promoting a panel to `live` adds its row here AND a
@@ -43,30 +44,42 @@ export function AppRoutes() {
 /** The app chrome (brand + shared nav + routed main). Mounted inside whatever Router wraps it. */
 export function AppShell() {
   return (
-    <div className="app">
-      <header className="app__bar">
-        <div className="app__brand">
-          <span className="app__mark" aria-hidden="true" />
-          <h1 className="app__name">Agent Observatory</h1>
-          <span className="app__tag">local-first · normalized agent cost &amp; activity</span>
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-3">
+          <div className="flex items-center gap-2">
+            <span
+              className="h-4 w-4 shrink-0 rounded-[4px] bg-gradient-to-br from-[var(--color-source-claude)] to-[var(--color-heat-4)]"
+              aria-hidden="true"
+            />
+            <h1 className="text-sm font-semibold tracking-tight">Agent Observatory</h1>
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              local-first · normalized agent cost &amp; activity
+            </span>
+          </div>
+          <nav className="flex flex-wrap items-center gap-1 text-sm" aria-label="Panels">
+            {NAV.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end
+                className={({ isActive }) =>
+                  cn(
+                    'rounded-md px-3 py-1.5 transition-colors',
+                    isActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground',
+                  )
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
         </div>
-        <nav className="app__nav" aria-label="Panels">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end
-              className={({ isActive }) => (isActive ? 'app__navlink app__navlink--active' : 'app__navlink')}
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
       </header>
-      <main className="app__main">
+      <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-6">
         <AppRoutes />
       </main>
-      <footer className="app__foot">
+      <footer className="mx-auto max-w-6xl px-6 pb-8 text-xs text-muted-foreground">
         Estimated, normalized from one rate card · tokens are the universal unit · subscription marginal cost ≠ billed
       </footer>
     </div>

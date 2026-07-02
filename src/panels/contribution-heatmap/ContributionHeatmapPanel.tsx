@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useDataSource } from '@/data/DataSourceContext';
 import { useScope } from '@/app/ScopeProvider';
 import { ScopeBar } from '@/app/ScopeBar';
+import { Card, CardEyebrow, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { RANGE_OPTIONS } from '@/domain/dateRange';
 import { SOURCE_OPTIONS } from '@/domain/sources';
 import { metaForKey } from '@/domain/projects';
@@ -11,11 +13,13 @@ import {
   selectCellBreakdown,
   type Bucket,
   type Metric,
+  type HeatmapCell,
 } from './contributionHeatmapModel';
 
-// GitHub-style 5-level ramp (bin 0 = empty → bin 4 = most). Concrete hex so jsdom resolves it to a
-// distinct rgb() per bin (the frozen oracle reads the INLINE colour and requires distinct bins).
-const RAMP = ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'] as const;
+// GitHub-dark contribution ramp, bins 0..4 (near-surface → brightest). CONCRETE hex, applied INLINE —
+// the frozen oracle reads style.backgroundColor and requires a distinct, resolvable colour per bin, so
+// this must never become a CSS variable or utility class.
+const RAMP = ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'] as const;
 const rampColour = (bin: number): string => RAMP[Math.max(0, Math.min(RAMP.length - 1, bin))] ?? RAMP[0];
 
 const BUCKETS: ReadonlyArray<{ readonly key: Bucket; readonly label: string }> = [
@@ -27,12 +31,15 @@ const METRICS: ReadonlyArray<{ readonly key: Metric; readonly label: string }> =
   { key: 'tokens', label: 'Tokens' },
   { key: 'cost', label: '$' },
 ];
-
 const EMPTY_PROSE: Record<'project' | 'tool', string> = {
-  project: 'No repository or unattributed usage in this scope — switch the source to Claude Code or All to see the project grid.',
+  project:
+    'No repository or unattributed usage in this scope — switch the source to Claude Code or All to see the project grid.',
   tool: 'No tool (Codex / OpenClaw) usage in this scope — the Tools strip appears under the All or a tool source.',
 };
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthOf = (bucketId: string): string => MONTHS[Number(bucketId.slice(5, 7)) - 1] ?? '';
 
+/** shadcn-style segmented control. Keeps the frozen testid/aria-current contract the smoke + oracle drive. */
 function Segmented<T extends string>({
   filterId,
   optionId,
@@ -49,41 +56,41 @@ function Segmented<T extends string>({
   readonly label: string;
 }) {
   return (
-    <div className="scopebar__group" data-testid={filterId} role="group" aria-label={label}>
-      <span className="scopebar__label">{label}</span>
-      <div className="segmented">
-        {options.map((opt) => (
-          <button
-            key={opt.key}
-            type="button"
-            className="segmented__option"
-            data-testid={optionId}
-            aria-current={active === opt.key ? 'true' : undefined}
-            onClick={() => onSelect(opt.key)}
-          >
-            {opt.label}
-          </button>
-        ))}
+    <div className="flex items-center gap-2" data-testid={filterId} role="group" aria-label={label}>
+      <span className="text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
+        {options.map((opt) => {
+          const isActive = active === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              data-testid={optionId}
+              aria-current={isActive ? 'true' : undefined}
+              onClick={() => onSelect(opt.key)}
+              className={cn(
+                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                isActive
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-/**
- * contributionHeatmap: a dense project × time contribution grid (a project section — repos +
- * Unattributed — over a Tools strip), with Daily/Weekly/Monthly and Tokens/$ mode toggles on top of
- * the shared range/source scope. Each cell is a coloured, keyboard-operable button carrying the RAW
- * value + its per-section quantile intensity bin; focusing one reveals the (source, model) breakdown
- * for that cell. Cells render in row-major DOM order; the inline colour is a pure function of
- * (section, bin), distinct across bins. Everything derives from the frozen engine (aggregateByProjectPeriod
- * + quantileScale), so it matches the frozen panel oracle exactly.
- */
 export function ContributionHeatmapPanel() {
   const dataSource = useDataSource();
   const { scope } = useScope();
   const [bucket, setBucket] = useState<Bucket>('day');
   const [metric, setMetric] = useState<Metric>('tokens');
   const [focused, setFocused] = useState<{ readonly project: string; readonly bucketId: string } | null>(null);
+  const [hovered, setHovered] = useState<HeatmapCell | null>(null);
 
   const snapshot = dataSource.getSnapshot();
   const card = dataSource.getRateCard();
@@ -92,7 +99,7 @@ export function ContributionHeatmapPanel() {
   const rangeLabel = RANGE_OPTIONS.find((o) => o.key === scope.range)?.label ?? '';
   const sourceLabel = SOURCE_OPTIONS.find((o) => o.key === scope.source)?.label ?? '';
   const kind = metric === 'tokens' ? 'tokens' : 'cost';
-  const cellFigure = (value: bigint): string =>
+  const figure = (value: bigint): string =>
     metric === 'tokens' ? `${formatTokensCompact(Number(value))} tokens` : formatUsdFromPico(value);
 
   const toggleFocus = (project: string, bucketId: string): void =>
@@ -102,40 +109,68 @@ export function ContributionHeatmapPanel() {
     ? selectCellBreakdown(snapshot, card, scope.range, scope.source, bucket, metric, focused.project, focused.bucketId)
     : [];
 
+  // GitHub-style sparse month axis: label each month at its first column, but ONLY if it spans enough
+  // columns to hold the label — so a lone boundary day (e.g. May 31 before a full June) doesn't collide.
+  const monthFirstCol = new Map<string, number>();
+  const monthSpan = new Map<string, number>();
+  model.buckets.forEach((b, i) => {
+    const m = b.slice(0, 7);
+    if (!monthFirstCol.has(m)) monthFirstCol.set(m, i);
+    monthSpan.set(m, (monthSpan.get(m) ?? 0) + 1);
+  });
+  const monthTicks = model.buckets.map((b, i) => {
+    const m = b.slice(0, 7);
+    return monthFirstCol.get(m) === i && (monthSpan.get(m) ?? 0) >= 3 ? monthOf(b) : '';
+  });
+
   return (
-    <section
-      className="panel panel--heatmap"
-      aria-labelledby="contribution-heatmap-title"
+    <Card
       data-panel-root="contributionHeatmap"
+      aria-labelledby="contribution-heatmap-title"
+      className="gap-4"
     >
-      <header className="panel__head">
-        <div className="panel__titleblock">
-          <p className="panel__eyebrow">Usage allocation · contribution grid</p>
-          <h2 id="contribution-heatmap-title" className="panel__title">
-            Contribution Heatmap
-          </h2>
-          <p className="panel__provenance">
+      <CardHeader>
+        <div className="flex flex-col gap-1">
+          <CardEyebrow>Usage allocation · contribution grid</CardEyebrow>
+          <CardTitle id="contribution-heatmap-title">Contribution Heatmap</CardTitle>
+          <p className="text-xs text-muted-foreground">
             As of {snapshot.asOf} · {formatMonthDay(model.from)} – {formatMonthDay(model.to)}
           </p>
         </div>
-        <div className="panel__chart-scope">
+        <div className="shrink-0 rounded-md bg-muted/50 px-2 py-1 text-xs text-secondary-foreground">
           {rangeLabel} · {sourceLabel}
         </div>
-      </header>
+      </CardHeader>
 
       <ScopeBar />
 
-      <div className="heatmap__modes">
-        <Segmented filterId="bucket-filter" optionId="bucket-option" options={BUCKETS} active={bucket} onSelect={setBucket} label="Bucket" />
-        <Segmented filterId="metric-filter" optionId="metric-option" options={METRICS} active={metric} onSelect={setMetric} label="Metric" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-4">
+          <Segmented filterId="bucket-filter" optionId="bucket-option" options={BUCKETS} active={bucket} onSelect={setBucket} label="Bucket" />
+          <Segmented filterId="metric-filter" optionId="metric-option" options={METRICS} active={metric} onSelect={setMetric} label="Metric" />
+        </div>
+        <div className="flex items-center gap-1.5 text-[0.7rem] text-muted-foreground">
+          <span>Less</span>
+          {RAMP.map((c, i) => (
+            <span key={i} className="h-3 w-3 rounded-[3px] ring-1 ring-inset ring-white/5" style={{ backgroundColor: c }} />
+          ))}
+          <span>More</span>
+        </div>
       </div>
 
-      <div className="heatmap__grid">
+      {/* Hover / focus readout — the per-cell detail (dataviz hover intent), kept as a stable line. */}
+      <p className="min-h-[1.25rem] text-xs text-secondary-foreground" aria-live="polite">
+        {hovered
+          ? `${metaForKey(hovered.projectKey).label} · ${hovered.bucketId} · ${figure(hovered.value)}`
+          : 'Hover a cell for its total · click to break it down by source and model.'}
+      </p>
+
+      <div className="flex flex-col gap-5 overflow-x-auto">
         {model.sections.map((sec) =>
           sec.isEmpty ? (
             <p
               key={sec.section}
-              className="heatmap__empty"
+              className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground"
               data-testid="heatmap-empty"
               data-empty-section={sec.section}
               data-empty-reason={EMPTY_PROSE[sec.section]}
@@ -143,74 +178,91 @@ export function ContributionHeatmapPanel() {
               {EMPTY_PROSE[sec.section]}
             </p>
           ) : (
-            <div className="heatsection" key={sec.section} data-section={sec.section}>
-              <h3 className="heatsection__title">{sec.section === 'project' ? 'Projects' : 'Tools'}</h3>
-              <div className="heatsection__rows">
-                {sec.rows.map((row) => (
-                  <div className="heatrow" key={row.projectKey}>
-                    <span className="heatrow__label">{row.label}</span>
-                    <div className="heatrow__cells">
-                      {row.cells.map((cell) => {
-                        const isFocused = focused?.project === cell.projectKey && focused?.bucketId === cell.bucketId;
-                        return (
-                          <button
-                            key={cell.bucketId}
-                            type="button"
-                            className={`heatcell${isFocused ? ' heatcell--focused' : ''}`}
-                            data-testid="heatmap-cell"
-                            data-cell-row={cell.projectKey}
-                            data-cell-bucket={cell.bucketId}
-                            data-cell-section={cell.section}
-                            data-cell-value={cell.value.toString()}
-                            data-value-kind={kind}
-                            data-intensity={String(cell.intensity)}
-                            data-cell-row-index={String(cell.rowIndex)}
-                            data-cell-col-index={String(cell.colIndex)}
-                            style={{ backgroundColor: rampColour(cell.intensity) }}
-                            aria-label={`${row.label} · ${cell.bucketId} · ${cellFigure(cell.value)}`}
-                            aria-pressed={isFocused}
-                            onClick={() => toggleFocus(cell.projectKey, cell.bucketId)}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
+            <section key={sec.section} data-section={sec.section} className="flex flex-col gap-1.5">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {sec.section === 'project' ? 'Projects' : 'Tools'}
+              </h3>
+              {/* Sparse month axis, aligned to the cell columns via the same 15px track. */}
+              <div className="flex pl-[8.5rem] text-[0.65rem] text-muted-foreground">
+                {monthTicks.map((m, i) => (
+                  <span key={i} className="w-[15px] shrink-0 overflow-visible whitespace-nowrap">
+                    {m}
+                  </span>
                 ))}
               </div>
-            </div>
+              {sec.rows.map((row) => (
+                <div key={row.projectKey} className="flex items-center gap-1">
+                  <span
+                    className="w-[8rem] shrink-0 truncate pr-2 text-right text-xs text-secondary-foreground"
+                    title={row.label}
+                  >
+                    {row.label}
+                  </span>
+                  <div className="flex gap-[3px]">
+                    {row.cells.map((cell) => {
+                      const isFocused = focused?.project === cell.projectKey && focused?.bucketId === cell.bucketId;
+                      return (
+                        <button
+                          key={cell.bucketId}
+                          type="button"
+                          data-testid="heatmap-cell"
+                          data-cell-row={cell.projectKey}
+                          data-cell-bucket={cell.bucketId}
+                          data-cell-section={cell.section}
+                          data-cell-value={cell.value.toString()}
+                          data-value-kind={kind}
+                          data-intensity={String(cell.intensity)}
+                          data-cell-row-index={String(cell.rowIndex)}
+                          data-cell-col-index={String(cell.colIndex)}
+                          style={{ backgroundColor: rampColour(cell.intensity) }}
+                          className={cn(
+                            'h-3 w-3 shrink-0 rounded-[3px] ring-1 ring-inset ring-white/5 transition-[outline]',
+                            'hover:outline hover:outline-1 hover:outline-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
+                            isFocused && 'outline outline-2 outline-white',
+                          )}
+                          aria-label={`${row.label} · ${cell.bucketId} · ${figure(cell.value)}`}
+                          aria-pressed={isFocused}
+                          onMouseEnter={() => setHovered(cell)}
+                          onMouseLeave={() => setHovered((h) => (h === cell ? null : h))}
+                          onClick={() => toggleFocus(cell.projectKey, cell.bucketId)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </section>
           ),
         )}
       </div>
 
       {focused ? (
-        <div className="heatmap__breakdown" data-testid="heatmap-breakdown">
-          <h3 className="heatmap__breakdown-title">
+        <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/20 p-4" data-testid="heatmap-breakdown">
+          <h3 className="text-sm font-semibold">
             {metaForKey(focused.project).label} · {focused.bucketId}
           </h3>
           {breakdown.length === 0 ? (
-            <p className="heatmap__breakdown-empty">No usage in this cell.</p>
+            <p className="text-sm text-muted-foreground">No usage in this cell.</p>
           ) : (
-            <ul className="breakdown" aria-label="Breakdown by source and model">
+            <ul className="flex flex-col gap-1">
               {breakdown.map((r) => (
-                <li key={r.key} className="breakdown__row">
+                <li key={r.key} className="flex items-center justify-between gap-4 text-sm">
                   <span
-                    className="breakdown__value"
                     data-testid="breakdown-row"
                     data-row-key={r.key}
                     data-row-value={r.value.toString()}
                     data-value-kind={kind}
+                    className="flex w-full items-center justify-between gap-4"
                   >
-                    <span className="breakdown__label">{r.key}</span>
-                    <span className="breakdown__figure">{cellFigure(r.value)}</span>
+                    <span className="text-secondary-foreground">{r.key}</span>
+                    <span className="tabular-nums text-foreground">{figure(r.value)}</span>
                   </span>
                 </li>
               ))}
             </ul>
           )}
         </div>
-      ) : (
-        <p className="heatmap__hint">Select a cell to see its source · model breakdown.</p>
-      )}
-    </section>
+      ) : null}
+    </Card>
   );
 }

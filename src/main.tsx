@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from '@/App'
 import { selectDataSource } from '@/data/realDataSource'
 import type { Snapshot } from '@/domain/types'
-import '@/styles/observatory.css'
+import '@/styles/theme.css'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {

@@ -1,0 +1,60 @@
+@import 'tailwindcss';
+
+/*
+ * Agent Observatory design tokens — a dark dashboard theme.
+ * Colours are the VALIDATED dataviz reference instance (see the dataviz skill): neutral dark surfaces +
+ * ink, the categorical source identities (blue/aqua/yellow, fixed order, CVD-checked), the status
+ * palette, and the GitHub-dark contribution ramp for the heatmap (sequential, monotonic-increasing on
+ * the dark surface). Named in shadcn/ui's token convention so its components consume them unchanged.
+ */
+@theme {
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --radius: 0.625rem;
+
+  /* Surfaces + ink (shadcn roles) */
+  --color-background: #0d0d0d; /* page plane */
+  --color-foreground: #ffffff; /* primary ink */
+  --color-card: #1a1a19; /* chart/panel surface */
+  --color-card-foreground: #ffffff;
+  --color-popover: #1f1f1e;
+  --color-popover-foreground: #ffffff;
+  --color-muted: #242422;
+  --color-muted-foreground: #898781; /* axis/labels */
+  --color-secondary: #242422;
+  --color-secondary-foreground: #c3c2b7; /* secondary ink */
+  --color-accent: #26262420;
+  --color-accent-foreground: #ffffff;
+  --color-primary: #3987e5;
+  --color-primary-foreground: #ffffff;
+  --color-destructive: #d03b3b;
+  --color-border: oklch(1 0 0 / 10%);
+  --color-input: oklch(1 0 0 / 14%);
+  --color-ring: #3987e5;
+
+  /* Data-viz: source identities (categorical, FIXED order — never cycled) + status */
+  --color-source-claude: #3987e5; /* blue  */
+  --color-source-codex: #199e70; /* aqua  */
+  --color-source-openclaw: #c98500; /* yellow */
+  --color-good: #0ca30c;
+  --color-warning: #fab219;
+  --color-critical: #d03b3b;
+
+  /* Heatmap sequential ramp — GitHub dark contribution graph, bins 0..4 (near-surface → brightest) */
+  --color-heat-0: #161b22;
+  --color-heat-1: #0e4429;
+  --color-heat-2: #006d32;
+  --color-heat-3: #26a641;
+  --color-heat-4: #39d353;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}

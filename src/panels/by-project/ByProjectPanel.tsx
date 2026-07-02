@@ -1,19 +1,18 @@
 import { useDataSource } from '@/data/DataSourceContext';
 import { useScope } from '@/app/ScopeProvider';
 import { ScopeBar } from '@/app/ScopeBar';
+import { Card, CardEyebrow, CardHeader, CardTitle } from '@/components/ui/card';
 import { RANGE_OPTIONS } from '@/domain/dateRange';
 import { SOURCE_OPTIONS } from '@/domain/sources';
-import { metaForKey } from '@/domain/projects';
+import { metaForKey, UNATTRIBUTED } from '@/domain/projects';
 import { formatUsdFromPico, formatTokensCompact, formatPercent, formatMonthDay } from '@/ui/format';
 import { selectByProject } from './byProjectModel';
 
 /**
- * byProject: the per-project usage-allocation leaderboard. Total normalized spend over the repo +
- * `__unattributed__` grid (tools excluded), then one ranked row per project showing its cost, token
- * volume, and token share of the grid. Each row's carrier emits the RAW pico-USD cost + token count +
- * share basis points the frozen oracle reads, and renders the SAME figures formatted so the visible
- * text stays consistent. Cost flows the injected rate card through `normalizeCost` (coupled); tokens +
- * share are card-invariant. A tool-only source scope (empty grid) renders the frozen empty state.
+ * byProject: the per-project usage-allocation leaderboard — total normalized spend over the repo +
+ * `__unattributed__` grid (tools excluded), then one ranked row per project with its cost, token
+ * volume, and token share of the grid (a bar). The row's carrier emits the RAW cost / tokens / share
+ * the frozen oracle reads and shows the same figures, so value + visible-text checks hold.
  */
 export function ByProjectPanel() {
   const dataSource = useDataSource();
@@ -24,30 +23,28 @@ export function ByProjectPanel() {
 
   const rangeLabel = RANGE_OPTIONS.find((o) => o.key === scope.range)?.label ?? '';
   const sourceLabel = SOURCE_OPTIONS.find((o) => o.key === scope.source)?.label ?? '';
-  const maxTokens = model.rows.reduce((m, r) => (r.totalTokens > m ? r.totalTokens : m), 0);
+  const maxShareBp = model.rows.reduce((m, r) => (r.tokenShareBp > m ? r.tokenShareBp : m), 0);
 
   return (
-    <section className="panel panel--breakdown" aria-labelledby="by-project-title" data-panel-root="byProject">
-      <header className="panel__head">
-        <div className="panel__titleblock">
-          <p className="panel__eyebrow">Usage allocation · by project</p>
-          <h2 id="by-project-title" className="panel__title">
-            By Project
-          </h2>
-          <p className="panel__provenance">
+    <Card data-panel-root="byProject" aria-labelledby="by-project-title" className="gap-4">
+      <CardHeader>
+        <div className="flex flex-col gap-1">
+          <CardEyebrow>Usage allocation · by project</CardEyebrow>
+          <CardTitle id="by-project-title">By Project</CardTitle>
+          <p className="text-xs text-muted-foreground">
             As of {snapshot.asOf} · {formatMonthDay(model.from)} – {formatMonthDay(model.to)}
           </p>
         </div>
-        <div className="panel__chart-scope">
+        <div className="shrink-0 rounded-md bg-muted/50 px-2 py-1 text-xs text-secondary-foreground">
           {rangeLabel} · {sourceLabel}
         </div>
-      </header>
+      </CardHeader>
 
       <ScopeBar />
 
       {model.isEmpty ? (
         <p
-          className="panel__empty"
+          className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground"
           data-testid="byproject-empty"
           data-empty-section="project"
           data-empty-reason="No repository or unattributed usage in this scope"
@@ -57,54 +54,62 @@ export function ByProjectPanel() {
         </p>
       ) : (
         <>
-          <div className="panel__metrics">
-            <div className="metric metric--lg">
-              <span className="metric__label">Total Spend · projects</span>
-              <span
-                className="metric__value"
-                data-testid="panel-metric"
-                data-metric-key="total-cost"
-                data-metric-value={model.totalCostPico.toString()}
-                data-value-kind="cost"
-              >
-                {formatUsdFromPico(model.totalCostPico)}
-              </span>
-            </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">Total spend · projects</span>
+            <span
+              className="text-3xl font-semibold tracking-tight"
+              data-testid="panel-metric"
+              data-metric-key="total-cost"
+              data-metric-value={model.totalCostPico.toString()}
+              data-value-kind="cost"
+            >
+              {formatUsdFromPico(model.totalCostPico)}
+            </span>
           </div>
 
-          <ol className="breakdown breakdown--ranked" aria-label="Usage by project">
+          <ol className="flex flex-col gap-2.5" aria-label="Usage by project">
             {model.rows.map((r, i) => {
-              const pct = maxTokens > 0 ? Math.round((r.totalTokens * 100) / maxTokens) : 0;
+              const barPct = maxShareBp > 0 ? (r.tokenShareBp * 100) / maxShareBp : 0;
+              const isUnattributed = r.projectKey === UNATTRIBUTED;
               return (
-                <li key={r.projectKey} className="breakdown__row">
-                  <span
-                    className="breakdown__project"
-                    data-testid="breakdown-row"
-                    data-row-key={r.projectKey}
-                    data-row-value={r.costPico.toString()}
-                    data-value-kind="cost"
-                    data-row-tokens={String(r.totalTokens)}
-                    data-row-share={String(r.tokenShareBp)}
-                    data-share-kind="percent"
-                    data-row-index={String(i)}
-                  >
-                    <span className="breakdown__rank" aria-hidden="true">
-                      {i + 1}
-                    </span>
-                    <span className="breakdown__label">{metaForKey(r.projectKey).label}</span>
-                    <span className="breakdown__bar" aria-hidden="true">
-                      <span className="breakdown__fill" style={{ width: `${pct}%` }} />
-                    </span>
-                    <span className="breakdown__cost">{formatUsdFromPico(r.costPico)}</span>
-                    <span className="breakdown__tokens">{formatTokensCompact(r.totalTokens)}</span>
-                    <span className="breakdown__share">{formatPercent(r.tokenShareBp)}</span>
-                  </span>
+                <li key={r.projectKey} className="flex items-center gap-3">
+                  <span className="w-5 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{i + 1}</span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span
+                        className={`truncate text-sm font-medium ${isUnattributed ? 'text-muted-foreground italic' : 'text-foreground'}`}
+                      >
+                        {metaForKey(r.projectKey).label}
+                      </span>
+                      <span
+                        data-testid="breakdown-row"
+                        data-row-key={r.projectKey}
+                        data-row-value={r.costPico.toString()}
+                        data-value-kind="cost"
+                        data-row-tokens={String(r.totalTokens)}
+                        data-row-share={String(r.tokenShareBp)}
+                        data-share-kind="percent"
+                        data-row-index={String(i)}
+                        className="flex shrink-0 items-baseline gap-3 tabular-nums"
+                      >
+                        <span className="text-sm font-semibold text-foreground">{formatUsdFromPico(r.costPico)}</span>
+                        <span className="w-14 text-right text-xs text-muted-foreground">{formatTokensCompact(r.totalTokens)}</span>
+                        <span className="w-12 text-right text-xs text-secondary-foreground">{formatPercent(r.tokenShareBp)}</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                      <div
+                        className={`h-full rounded-full ${isUnattributed ? 'bg-muted-foreground/50' : 'bg-[var(--color-source-claude)]'}`}
+                        style={{ width: `${barPct}%` }}
+                      />
+                    </div>
+                  </div>
                 </li>
               );
             })}
           </ol>
         </>
       )}
-    </section>
+    </Card>
   );
 }

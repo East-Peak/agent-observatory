@@ -34,7 +34,7 @@ export function Sparkline({ series, color }: { readonly series: readonly SpendPo
 
   return (
     <svg
-      className="sparkline"
+      className="block h-24 w-full"
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
       role="img"
@@ -46,8 +46,10 @@ export function Sparkline({ series, color }: { readonly series: readonly SpendPo
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      {series.length > 0 && <polygon className="sparkline__area" points={area} fill={`url(#${gradientId})`} />}
-      {series.length > 1 && <polyline className="sparkline__line" points={line} fill="none" stroke={color} />}
+      {series.length > 0 && <polygon points={area} fill={`url(#${gradientId})`} />}
+      {series.length > 1 && (
+        <polyline points={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      )}
       {series.map((p, i) => {
         const [x, y] = xy(i, Number(p.costPico));
         const isLast = i === lastIdx;
@@ -61,8 +63,7 @@ export function Sparkline({ series, color }: { readonly series: readonly SpendPo
             cx={x}
             cy={y}
             r={isLast ? 3.5 : 1.5}
-            className={isLast ? 'sparkline__dot sparkline__dot--last' : 'sparkline__dot'}
-            style={isLast ? { fill: color } : undefined}
+            style={{ fill: color, fillOpacity: isLast ? 1 : 0.55 }}
           />
         );
       })}

@@ -1,55 +1,20 @@
-import type { ReactNode } from 'react';
 import { useDataSource } from '@/data/DataSourceContext';
 import { useScope } from '@/app/ScopeProvider';
-import { ScopeBar } from '@/app/ScopeBar';
 import { RANGE_OPTIONS } from '@/domain/dateRange';
 import { SOURCE_OPTIONS } from '@/domain/sources';
 import type { Source } from '@/domain/types';
-import { formatUsdFromPico, formatTokensCompact, formatMonthDay } from '@/ui/format';
+import { formatUsdFromPico, formatTokensCompact } from '@/ui/format';
+import { PanelShell } from '@/components/ui/panel';
+import { StatTile } from '@/components/ui/stat';
 import { selectBySourceModel } from './bySourceModelModel';
 
-type ValueKind = 'cost' | 'tokens';
-
 const sourceName = (s: Source): string => SOURCE_OPTIONS.find((o) => o.key === s)?.label ?? s;
-
-/** One house-style metric: visible figure + the RAW base-10 integer the verifier reads. */
-function Metric({
-  metricKey,
-  kind,
-  raw,
-  label,
-  children,
-  size = 'sm',
-}: {
-  readonly metricKey: string;
-  readonly kind: ValueKind;
-  readonly raw: string;
-  readonly label: string;
-  readonly children: ReactNode;
-  readonly size?: 'sm' | 'lg';
-}) {
-  return (
-    <div className={`metric metric--${size}`}>
-      <span className="metric__label">{label}</span>
-      <span
-        className="metric__value"
-        data-testid="panel-metric"
-        data-metric-key={metricKey}
-        data-metric-value={raw}
-        data-value-kind={kind}
-      >
-        {children}
-      </span>
-    </div>
-  );
-}
+const sourceColour = (s: Source): string => `var(--color-source-${s})`;
 
 /**
  * bySourceModel: total normalized spend + token volume, plus one breakdown row per `(source, model)`
- * in scope. Each row's value carrier emits the RAW pico-USD `BigInt` string the verifier reads and
- * shows the same figure formatted — so the frozen panel oracle's value, coupling, and visible-text
- * checks all hold. Cost flows from the injected rate card through `normalizeCost`; the token metric is
- * invariant under rate-card scaling.
+ * in scope. Each row emits the RAW pico-USD cost the oracle reads and shows the same figure. Carriers
+ * unchanged — restyled to the shared card/stat-tile system.
  */
 export function BySourceModelPanel() {
   const dataSource = useDataSource();
@@ -63,63 +28,62 @@ export function BySourceModelPanel() {
   const max = model.rows.reduce((m, r) => (r.costPico > m ? r.costPico : m), 0n);
 
   return (
-    <section
-      className="panel panel--breakdown"
-      aria-labelledby="by-source-model-title"
-      data-panel-root="bySourceModel"
+    <PanelShell
+      panelKey="bySourceModel"
+      titleId="by-source-model-title"
+      eyebrow="Normalized spend · by source & model"
+      title="By Source & Model"
+      asOf={snapshot.asOf}
+      from={model.from}
+      to={model.to}
+      scopeLabel={`${rangeLabel} · ${sourceLabel}`}
     >
-      <header className="panel__head">
-        <div className="panel__titleblock">
-          <p className="panel__eyebrow">Normalized spend · by source &amp; model</p>
-          <h2 id="by-source-model-title" className="panel__title">
-            By Source &amp; Model
-          </h2>
-          <p className="panel__provenance">
-            As of {snapshot.asOf} · {formatMonthDay(model.from)} – {formatMonthDay(model.to)}
-          </p>
-        </div>
-        <div className="panel__chart-scope">
-          {rangeLabel} · {sourceLabel}
-        </div>
-      </header>
-
-      <ScopeBar />
-
-      <div className="panel__metrics">
-        <Metric metricKey="total-cost" kind="cost" raw={model.totalCostPico.toString()} label="Total Spend" size="lg">
+      <div className="flex flex-wrap gap-8">
+        <StatTile label="Total Spend" metricKey="total-cost" kind="cost" raw={model.totalCostPico.toString()} size="lg">
           {formatUsdFromPico(model.totalCostPico)}
-        </Metric>
-        <Metric metricKey="total-tokens" kind="tokens" raw={model.totalTokens.toString()} label="Tokens">
+        </StatTile>
+        <StatTile label="Tokens" metricKey="total-tokens" kind="tokens" raw={model.totalTokens.toString()}>
           {formatTokensCompact(model.totalTokens)}
-        </Metric>
+        </StatTile>
       </div>
 
-      <ul className="breakdown" aria-label="Spend by source and model">
+      <ul className="flex flex-col gap-2.5" aria-label="Spend by source and model">
         {model.rows.map((r) => {
-          const pct = max > 0n ? Number((r.costPico * 100n) / max) : 0;
+          const barPct = max > 0n ? Number((r.costPico * 100n) / max) : 0;
           return (
-            <li key={r.key} className="breakdown__row">
-              <span className="breakdown__label">
-                <span className="source-dot" data-source={r.source} aria-hidden="true" /> {sourceName(r.source)} ·{' '}
-                {r.model}
-              </span>
-              <span className="breakdown__bar" aria-hidden="true">
-                <span className="breakdown__fill" data-source={r.source} style={{ width: `${pct}%` }} />
-              </span>
+            <li key={r.key} className="flex items-center gap-3">
               <span
-                className="breakdown__value"
-                data-testid="breakdown-row"
-                data-row-key={r.key}
-                data-row-value={r.costPico.toString()}
-                data-value-kind="cost"
-              >
-                {formatUsdFromPico(r.costPico)}
-              </span>
-              <span className="breakdown__tokens">{formatTokensCompact(r.totalTokens)}</span>
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: sourceColour(r.source) }}
+                aria-hidden="true"
+              />
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="truncate text-sm">
+                    <span className="text-muted-foreground">{sourceName(r.source)}</span>
+                    <span className="text-foreground"> · {r.model}</span>
+                  </span>
+                  <span className="flex shrink-0 items-baseline gap-3 tabular-nums">
+                    <span
+                      data-testid="breakdown-row"
+                      data-row-key={r.key}
+                      data-row-value={r.costPico.toString()}
+                      data-value-kind="cost"
+                      className="text-sm font-semibold text-foreground"
+                    >
+                      {formatUsdFromPico(r.costPico)}
+                    </span>
+                    <span className="w-14 text-right text-xs text-muted-foreground">{formatTokensCompact(r.totalTokens)}</span>
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                  <div className="h-full rounded-full" style={{ width: `${barPct}%`, backgroundColor: sourceColour(r.source) }} />
+                </div>
+              </div>
             </li>
           );
         })}
       </ul>
-    </section>
+    </PanelShell>
   );
 }
