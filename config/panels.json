@@ -6,6 +6,7 @@
     "bySourceModel": { "status": "live", "dir": "by-source-model", "route": "/by-source-model" },
     "cacheEfficiency": { "status": "live", "dir": "cache-efficiency", "route": "/cache-efficiency" },
     "activityFeed": { "status": "live", "dir": "activity-feed", "route": "/activity-feed" },
-    "contributionHeatmap": { "status": "live", "dir": "contribution-heatmap", "route": "/contribution" }
+    "contributionHeatmap": { "status": "live", "dir": "contribution-heatmap", "route": "/contribution" },
+    "byProject": { "status": "live", "dir": "by-project", "route": "/by-project" }
   }
 }
