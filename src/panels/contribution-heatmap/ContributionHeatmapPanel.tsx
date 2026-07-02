@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDataSource } from '@/data/DataSourceContext';
 import { useScope } from '@/app/ScopeProvider';
 import { ScopeBar } from '@/app/ScopeBar';
@@ -92,6 +92,13 @@ export function ContributionHeatmapPanel() {
   const [focused, setFocused] = useState<{ readonly project: string; readonly bucketId: string } | null>(null);
   const [hovered, setHovered] = useState<HeatmapCell | null>(null);
 
+  // A focused/hovered cell is identified by (project, bucketId), which are only valid for the current
+  // scope + bucket mode — so clear both when any of those change, or the breakdown would show a stale cell.
+  useEffect(() => {
+    setFocused(null);
+    setHovered(null);
+  }, [scope.range, scope.source, bucket, metric]);
+
   const snapshot = dataSource.getSnapshot();
   const card = dataSource.getRateCard();
   const model = selectContributionHeatmap(snapshot, card, scope.range, scope.source, bucket, metric);
@@ -183,7 +190,7 @@ export function ContributionHeatmapPanel() {
                 {sec.section === 'project' ? 'Projects' : 'Tools'}
               </h3>
               {/* Sparse month axis, aligned to the cell columns via the same 15px track. */}
-              <div className="flex pl-[8.5rem] text-[0.65rem] text-muted-foreground">
+              <div className="flex pl-[8.25rem] text-[0.65rem] text-muted-foreground">
                 {monthTicks.map((m, i) => (
                   <span key={i} className="w-[15px] shrink-0 overflow-visible whitespace-nowrap">
                     {m}
@@ -216,14 +223,16 @@ export function ContributionHeatmapPanel() {
                           data-cell-col-index={String(cell.colIndex)}
                           style={{ backgroundColor: rampColour(cell.intensity) }}
                           className={cn(
-                            'h-3 w-3 shrink-0 rounded-[3px] ring-1 ring-inset ring-white/5 transition-[outline]',
+                            'h-3 w-3 shrink-0 rounded-[3px] ring-1 ring-inset ring-white/10 transition-[outline]',
                             'hover:outline hover:outline-1 hover:outline-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
                             isFocused && 'outline outline-2 outline-white',
                           )}
                           aria-label={`${row.label} · ${cell.bucketId} · ${figure(cell.value)}`}
                           aria-pressed={isFocused}
                           onMouseEnter={() => setHovered(cell)}
-                          onMouseLeave={() => setHovered((h) => (h === cell ? null : h))}
+                          onMouseLeave={() =>
+                            setHovered((h) => (h?.projectKey === cell.projectKey && h?.bucketId === cell.bucketId ? null : h))
+                          }
                           onClick={() => toggleFocus(cell.projectKey, cell.bucketId)}
                         />
                       );

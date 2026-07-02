@@ -1,8 +1,13 @@
 # Agent Observatory
 
 A local-first dashboard that turns coding-agent usage into one **normalized cost + activity** surface —
-apples-to-apples spend and token volume across **Claude Code, Codex, and OpenClaw**, derived from
-[`ccusage`](https://github.com/ryoppippi/ccusage). Runs entirely on your machine; no data leaves it.
+apples-to-apples spend, token volume, and **per-project allocation** across **Claude Code, Codex, and
+OpenClaw**, derived from [`ccusage`](https://github.com/ryoppippi/ccusage). Runs entirely on your machine;
+no data leaves it.
+
+**Six panels:** Spend Overview (daily spend + sparkline), By Source & Model, Cache Efficiency, Activity
+Feed, a GitHub-style **Contribution Heatmap** (project × time), and a **By Project** leaderboard (token
+share of the grid). All share one time-range + source scope.
 
 ## Why it's interesting
 
@@ -22,9 +27,9 @@ The dashboard is the easy part. The engineering worth a look is underneath it:
 ## Architecture
 
 ```
-ccusage (pinned) ──▶ decoders ──▶ canonical UsageRecord[] ──▶ pricing + aggregation ──▶ snapshot ──▶ SPA
-   per-source         field-by-field      (source·model·day)     BigInt pico-USD          static     React panels
-   JSON envelopes     wire validation                            point-in-time bands
+ccusage (pinned) ──▶ decoders + resolver ──▶ canonical UsageRecord[] ──▶ pricing + aggregation ──▶ snapshot ──▶ SPA
+   per-source          field-by-field         (source·project·model·day)  BigInt pico-USD           static     React panels
+   --instances JSON    git-root attribution                                point-in-time bands
 ```
 
 Each layer is a small, independently testable unit; money stays exact until it's formatted to USD at the very
@@ -32,8 +37,10 @@ last render step.
 
 ## Stack
 
-Vite · React · TypeScript (strict) · vitest/jsdom · ESLint flat config (`--max-warnings 0`). Money math is
-`BigInt` integer-string pico-USD throughout.
+Vite · React · TypeScript (strict) · **Tailwind v4 + shadcn/ui** (dark, on a validated dataviz palette) ·
+vitest/jsdom · ESLint flat config (`--max-warnings 0`). Money math is `BigInt` integer-string pico-USD
+throughout; per-project attribution resolves each record's cwd to its git-toplevel repo (nested cwds roll
+up; unresolved → `__unattributed__`).
 
 ## Scripts
 

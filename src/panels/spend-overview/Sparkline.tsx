@@ -13,7 +13,7 @@ const PAD = 6;
  */
 export function Sparkline({ series, color }: { readonly series: readonly SpendPoint[]; readonly color: string }) {
   const gradientId = useId();
-  const values = series.map((p) => Number(p.costPico));
+  const values = series.map((p) => Number(p.costPico / 1_000_000n));
   const max = values.length ? Math.max(...values) : 0;
   const min = values.length ? Math.min(...values) : 0;
   const span = max - min || 1;
@@ -25,7 +25,7 @@ export function Sparkline({ series, color }: { readonly series: readonly SpendPo
     return [x, y];
   };
 
-  const line = series.map((p, i) => xy(i, Number(p.costPico)).join(',')).join(' ');
+  const line = series.map((p, i) => xy(i, Number(p.costPico / 1_000_000n)).join(',')).join(' ');
   const area =
     series.length > 0
       ? `${PAD},${H - PAD} ${line} ${PAD + (series.length - 1) * stepX},${H - PAD}`
@@ -51,7 +51,7 @@ export function Sparkline({ series, color }: { readonly series: readonly SpendPo
         <polyline points={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       )}
       {series.map((p, i) => {
-        const [x, y] = xy(i, Number(p.costPico));
+        const [x, y] = xy(i, Number(p.costPico / 1_000_000n));
         const isLast = i === lastIdx;
         return (
           <circle

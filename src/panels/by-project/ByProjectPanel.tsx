@@ -23,7 +23,6 @@ export function ByProjectPanel() {
 
   const rangeLabel = RANGE_OPTIONS.find((o) => o.key === scope.range)?.label ?? '';
   const sourceLabel = SOURCE_OPTIONS.find((o) => o.key === scope.source)?.label ?? '';
-  const maxShareBp = model.rows.reduce((m, r) => (r.tokenShareBp > m ? r.tokenShareBp : m), 0);
 
   return (
     <Card data-panel-root="byProject" aria-labelledby="by-project-title" className="gap-4">
@@ -69,7 +68,7 @@ export function ByProjectPanel() {
 
           <ol className="flex flex-col gap-2.5" aria-label="Usage by project">
             {model.rows.map((r, i) => {
-              const barPct = maxShareBp > 0 ? (r.tokenShareBp * 100) / maxShareBp : 0;
+              const barPct = r.tokenShareBp / 100; // basis points → % of the grid (the actual share, not rank-relative)
               const isUnattributed = r.projectKey === UNATTRIBUTED;
               return (
                 <li key={r.projectKey} className="flex items-center gap-3">
