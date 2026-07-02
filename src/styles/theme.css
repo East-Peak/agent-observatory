@@ -30,6 +30,7 @@
   --color-border: oklch(1 0 0 / 10%);
   --color-input: oklch(1 0 0 / 14%);
   --color-ring: #3987e5;
+  --color-gridline: #2c2c2a; /* chart hairline (dark) — recessive, from the validated palette */
 
   /* Data-viz: source identities (categorical, FIXED order — never cycled) + status */
   --color-source-claude: #3987e5; /* blue  */
