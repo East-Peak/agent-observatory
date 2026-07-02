@@ -19,7 +19,8 @@
     "verify:step": "node scripts/verify.mjs",
     "verify:demo-ready": "node scripts/verify.mjs --demo-ready",
     "verify:complete": "node scripts/verify.mjs --complete",
-    "certify:complete": "node scripts/certify.mjs"
+    "certify:complete": "node scripts/certify.mjs",
+    "arch:graph": "npx --yes madge --ts-config tsconfig.json --extensions ts,tsx --json src/main.tsx | node tools/arch-graph.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
