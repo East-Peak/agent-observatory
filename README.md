@@ -35,6 +35,23 @@ ccusage (pinned) ──▶ decoders + resolver ──▶ canonical UsageRecord[]
 Each layer is a small, independently testable unit; money stays exact until it's formatted to USD at the very
 last render step.
 
+## Per-project attribution (read this if everything shows as *Unattributed*)
+
+Attribution follows the directory a session is **launched** from — `ccusage --instances` reports usage per
+session working directory, and the resolver forward-matches that directory against known git roots
+(discovered under `~/projects` and `~/.openclaw/workspace`; see `scripts/ingest.mjs`). A directory *inside*
+a repo attributes to the enclosing repo (longest match wins); no match fails closed to `__unattributed__`.
+
+Two practical consequences:
+
+- **Launch the agent from inside the repo you're working on.** A session started from your home directory
+  lands in *Unattributed* even if it spends the whole time working on repos — `cd`-ing around after launch
+  doesn't change the session's attribution.
+- Codex and OpenClaw report no working directory, so they appear as **tool rows** (the heatmap's Tools
+  strip), never in the project grid — a "project share" always means repo + unattributed, tools excluded.
+
+The By Project panel calls this out automatically when the unattributed share exceeds 50%.
+
 ## Stack
 
 Vite · React · TypeScript (strict) · **Tailwind v4 + shadcn/ui** (dark, on a validated dataviz palette) ·
