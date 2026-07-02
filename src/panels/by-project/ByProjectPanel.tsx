@@ -14,6 +14,12 @@ import { selectByProject } from './byProjectModel';
  * volume, and token share of the grid (a bar). The row's carrier emits the RAW cost / tokens / share
  * the frozen oracle reads and shows the same figures, so value + visible-text checks hold.
  */
+// Unattributed's bar fill: a diagonal stripe (the "other/unallocated" texture), clearly distinct from
+// both the track and a repo's solid source-blue — at 98% share a flat gray fill is indistinguishable
+// from the track and the panel reads as broken.
+const UNATTRIBUTED_STRIPE =
+  'repeating-linear-gradient(135deg, #52514e 0 4px, #33332f 4px 8px)';
+
 export function ByProjectPanel() {
   const dataSource = useDataSource();
   const { scope } = useScope();
@@ -23,6 +29,9 @@ export function ByProjectPanel() {
 
   const rangeLabel = RANGE_OPTIONS.find((o) => o.key === scope.range)?.label ?? '';
   const sourceLabel = SOURCE_OPTIONS.find((o) => o.key === scope.source)?.label ?? '';
+  // Registry label (carries ingest aliases) with the basename fallback for keys outside the registry.
+  const labelOf = (key: string): string => snapshot.projects[key]?.label ?? metaForKey(key).label;
+  const unattributedBp = model.rows.find((r) => r.projectKey === UNATTRIBUTED)?.tokenShareBp ?? 0;
 
   return (
     <Card data-panel-root="byProject" aria-labelledby="by-project-title" className="gap-4">
@@ -78,7 +87,7 @@ export function ByProjectPanel() {
                       <span
                         className={`truncate text-sm font-medium ${isUnattributed ? 'text-muted-foreground italic' : 'text-foreground'}`}
                       >
-                        {metaForKey(r.projectKey).label}
+                        {labelOf(r.projectKey)}
                       </span>
                       <span
                         data-testid="breakdown-row"
@@ -96,10 +105,16 @@ export function ByProjectPanel() {
                         <span className="w-12 text-right text-xs text-secondary-foreground">{formatPercent(r.tokenShareBp)}</span>
                       </span>
                     </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/40" aria-hidden="true">
                       <div
-                        className={`h-full rounded-full ${isUnattributed ? 'bg-muted-foreground/50' : 'bg-[var(--color-source-claude)]'}`}
-                        style={{ width: `${barPct}%` }}
+                        className={`h-full rounded-full ${isUnattributed ? '' : 'bg-[var(--color-source-claude)]'}`}
+                        style={{
+                          width: `${barPct}%`,
+                          // A nonzero share always shows at least a sliver; the stripe keeps a near-100%
+                          // Unattributed fill visually distinct from the (similar-toned) empty track.
+                          minWidth: r.tokenShareBp > 0 ? 3 : 0,
+                          ...(isUnattributed ? { backgroundImage: UNATTRIBUTED_STRIPE } : {}),
+                        }}
                       />
                     </div>
                   </div>
@@ -107,6 +122,17 @@ export function ByProjectPanel() {
               );
             })}
           </ol>
+
+          {unattributedBp >= 5000 && (
+            <p className="rounded-md border-l-2 border-[var(--color-warning)] bg-muted/20 py-2 pl-3 pr-2 text-xs leading-relaxed text-muted-foreground">
+              <span className="font-medium text-secondary-foreground">
+                {formatPercent(unattributedBp)} of usage is unattributed.
+              </span>{' '}
+              Attribution follows the directory a session is <em>launched</em> from — sessions started outside a
+              known git repo (for example, your home directory) land here even if they work on repos. Launch the
+              agent from inside a repo to allocate its usage.
+            </p>
+          )}
         </>
       )}
     </Card>

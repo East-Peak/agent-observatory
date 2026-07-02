@@ -15,13 +15,14 @@ export function Sparkline({ series, color }: { readonly series: readonly SpendPo
   const gradientId = useId();
   const values = series.map((p) => Number(p.costPico / 1_000_000n));
   const max = values.length ? Math.max(...values) : 0;
-  const min = values.length ? Math.min(...values) : 0;
-  const span = max - min || 1;
+  // An AREA chart's fill encodes magnitude from the baseline, so the y-scale anchors at ZERO — a
+  // min-truncated baseline would exaggerate day-to-day variation into cliffs.
+  const span = max || 1;
   const stepX = series.length > 1 ? (W - PAD * 2) / (series.length - 1) : 0;
 
   const xy = (i: number, v: number): readonly [number, number] => {
     const x = PAD + i * stepX;
-    const y = H - PAD - ((v - min) / span) * (H - PAD * 2);
+    const y = H - PAD - (v / span) * (H - PAD * 2);
     return [x, y];
   };
 

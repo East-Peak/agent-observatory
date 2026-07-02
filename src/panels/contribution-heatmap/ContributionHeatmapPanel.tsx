@@ -102,6 +102,10 @@ export function ContributionHeatmapPanel() {
   const snapshot = dataSource.getSnapshot();
   const card = dataSource.getRateCard();
   const model = selectContributionHeatmap(snapshot, card, scope.range, scope.source, bucket, metric);
+  const labelOf = (key: string): string => snapshot.projects[key]?.label ?? metaForKey(key).label;
+  // Day cells stay GitHub-square; weekly/monthly buckets are few, so wider cells keep the grid legible
+  // instead of a sparse strip of dots. Axis slots track the cell width + the 3px cell gap.
+  const cellW = { day: 12, week: 22, month: 34 }[bucket];
 
   const rangeLabel = RANGE_OPTIONS.find((o) => o.key === scope.range)?.label ?? '';
   const sourceLabel = SOURCE_OPTIONS.find((o) => o.key === scope.source)?.label ?? '';
@@ -165,10 +169,12 @@ export function ContributionHeatmapPanel() {
         </div>
       </div>
 
-      {/* Hover / focus readout — the per-cell detail (dataviz hover intent), kept as a stable line. */}
-      <p className="min-h-[1.25rem] text-xs text-secondary-foreground" aria-live="polite">
+      {/* Hover readout — the per-cell detail for pointer users; keyboard/SR users get the same figure
+          from each cell's aria-label, so this line is deliberately NOT a live region (announcing every
+          mouse move would be noise). */}
+      <p className="min-h-[1.25rem] text-xs text-secondary-foreground">
         {hovered
-          ? `${metaForKey(hovered.projectKey).label} · ${hovered.bucketId} · ${figure(hovered.value)}`
+          ? `${labelOf(hovered.projectKey)} · ${hovered.bucketId} · ${figure(hovered.value)}`
           : 'Hover a cell for its total · click to break it down by source and model.'}
       </p>
 
@@ -192,7 +198,7 @@ export function ContributionHeatmapPanel() {
               {/* Sparse month axis, aligned to the cell columns via the same 15px track. */}
               <div className="flex pl-[8.25rem] text-[0.65rem] text-muted-foreground">
                 {monthTicks.map((m, i) => (
-                  <span key={i} className="w-[15px] shrink-0 overflow-visible whitespace-nowrap">
+                  <span key={i} className="shrink-0 overflow-visible whitespace-nowrap" style={{ width: cellW + 3 }}>
                     {m}
                   </span>
                 ))}
@@ -221,9 +227,9 @@ export function ContributionHeatmapPanel() {
                           data-intensity={String(cell.intensity)}
                           data-cell-row-index={String(cell.rowIndex)}
                           data-cell-col-index={String(cell.colIndex)}
-                          style={{ backgroundColor: rampColour(cell.intensity) }}
+                          style={{ backgroundColor: rampColour(cell.intensity), width: cellW }}
                           className={cn(
-                            'h-3 w-3 shrink-0 rounded-[3px] ring-1 ring-inset ring-white/10 transition-[outline]',
+                            'h-3 shrink-0 rounded-[3px] ring-1 ring-inset ring-white/10 transition-[outline]',
                             'hover:outline hover:outline-1 hover:outline-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
                             isFocused && 'outline outline-2 outline-white',
                           )}
@@ -248,7 +254,7 @@ export function ContributionHeatmapPanel() {
       {focused ? (
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/20 p-4" data-testid="heatmap-breakdown">
           <h3 className="text-sm font-semibold">
-            {metaForKey(focused.project).label} · {focused.bucketId}
+            {labelOf(focused.project)} · {focused.bucketId}
           </h3>
           {breakdown.length === 0 ? (
             <p className="text-sm text-muted-foreground">No usage in this cell.</p>

@@ -63,6 +63,7 @@ function buildSection(
   metric: Metric,
   nBuckets: number,
   startRowIndex: number,
+  labelOf: (key: string) => string,
 ): HeatmapSectionView {
   if (rowKeys.length === 0) return { section, isEmpty: true, rows: [] };
   const grid = aggregateByProjectPeriod(inWindowRecords, card, bucket, window, rowKeys);
@@ -82,7 +83,7 @@ function buildSection(
   });
   const rows: HeatmapRow[] = rowKeys.map((projectKey, r) => ({
     projectKey,
-    label: metaForKey(projectKey).label,
+    label: labelOf(projectKey),
     cells: cells.slice(r * nBuckets, (r + 1) * nBuckets),
   }));
   return { section, isEmpty: false, rows };
@@ -123,9 +124,11 @@ export function selectContributionHeatmap(
   const toolRowKeys = [CODEX_PROJECT, OPENCLAW_PROJECT].filter((p) => effort.has(p)); // fixed order
 
   const n = buckets.length;
-  const projectSection = buildSection('project', projectRowKeys, inCur, card, bucket, window, metric, n, 0);
+  // Registry label (carries ingest aliases), basename fallback for keys outside the registry.
+  const labelOf = (key: string): string => snapshot.projects[key]?.label ?? metaForKey(key).label;
+  const projectSection = buildSection('project', projectRowKeys, inCur, card, bucket, window, metric, n, 0, labelOf);
   const toolStart = projectSection.isEmpty ? 0 : projectRowKeys.length;
-  const toolSection = buildSection('tool', toolRowKeys, inCur, card, bucket, window, metric, n, toolStart);
+  const toolSection = buildSection('tool', toolRowKeys, inCur, card, bucket, window, metric, n, toolStart, labelOf);
 
   return { from: window.from, to: window.to, buckets, sections: [projectSection, toolSection] };
 }
