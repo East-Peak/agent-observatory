@@ -1302,6 +1302,9 @@ const FROZEN_FILES = [
   // goldens. Frozen so the loop can't reshape a column/bin to make a wrong heatmap pass.
   'src/domain/buckets.ts',
   'src/domain/intensity.ts',
+  // Shared exact-money implementation. The dashboard compatibility shim and frozen normalization
+  // gates exercise this source; freezing it keeps the money engine inside the verifier boundary.
+  'packages/pricing/src/index.ts',
   // Frozen so the loop cannot move the toolchain version pins out from under `toolchain-integrity`
   // (node_modules is gitignored, so a tampered local binary is invisible to git-clean — the gate
   // instead pins vitest/tsx/vite to these locked versions). Codex r3 blocker.
@@ -1460,6 +1463,7 @@ function livelockGuardCheck() {
 runCheck('tests', 'npm run test:run');
 runCheck('lint', 'npm run lint', 180000);
 runCheck('tsc', 'npx tsc --noEmit', 180000);
+runCheck('pricing-verify', 'npm --workspace packages/pricing run verify', 180000);
 identityCheck();
 toolchainIntegrityCheck();
 

@@ -6,6 +6,9 @@ const map: ProjectMap = { projectRoots: ['/p/marin-families'], workspaceRoot: '/
 const turn = (over: Partial<AgentTurn>): AgentTurn => ({
   sessionId: 's',
   index: 0,
+  source: 'claude',
+  date: '2026-07-03',
+  model: 'claude-opus-4-8',
   cwd: null,
   usage: null,
   files: [],

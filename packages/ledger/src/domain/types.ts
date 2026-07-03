@@ -1,3 +1,7 @@
+import type { BillableUsage, Source, TokenUsage } from '../../../pricing/src/index.js';
+
+export type { BillableUsage, Source, TokenUsage };
+
 /**
  * Domain types for the attribution classifier. These are the STABLE shapes the classifier reasons over —
  * a `ClaudeTranscriptAdapter` (later) is responsible for turning raw transcript JSONL into `AgentTurn`s, so
@@ -8,19 +12,18 @@
 export interface AgentTurn {
   readonly sessionId: string;
   readonly index: number;
+  /** Agent/tool source for this turn. */
+  readonly source: Source;
+  /** UTC billing date, YYYY-MM-DD, derived from the transcript timestamp. */
+  readonly date: string;
+  /** Model id emitted by the source transcript. */
+  readonly model: string;
   /** Working directory recorded for this turn (tracks `cd`); `null` if the transcript omits it. */
   readonly cwd: string | null;
   /** Token usage for a billable turn; `null` for non-billable lines. */
   readonly usage: TokenUsage | null;
   /** File operations performed in this turn, in order. */
   readonly files: readonly FileEvidence[];
-}
-
-export interface TokenUsage {
-  readonly input: number;
-  readonly output: number;
-  readonly cacheRead: number;
-  readonly cacheCreation: number;
 }
 
 export interface FileEvidence {
@@ -55,13 +58,13 @@ export type EvidenceCode = 'file-mutate' | 'file-read' | 'cwd' | 'none';
 export type Confidence = 'strong' | 'contextual' | 'none';
 
 /** Prices one turn's token usage in integer pico-USD. Injected so the money engine stays a dependency. */
-export type Pricer = (usage: TokenUsage) => bigint;
+export type Pricer = (usage: BillableUsage) => bigint;
 
 /** One target's slice of a session: its normalized cost + a token volume for context. */
 export interface TargetAllocation {
   readonly target: Target;
   readonly costPico: bigint;
-  readonly outputTokens: number;
+  readonly tokens: TokenUsage;
 }
 
 /** The durable ledger row for one session: cost allocated across targets, reconciling to the total. */
@@ -70,6 +73,7 @@ export interface SessionLedgerRow {
   /** Billable turns allocated. */
   readonly turns: number;
   readonly totalCostPico: bigint;
+  readonly totalTokens: TokenUsage;
   /** Per-target slices, cost-descending; `Σ costPico === totalCostPico` exactly. */
   readonly allocations: readonly TargetAllocation[];
 }

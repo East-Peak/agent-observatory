@@ -27,7 +27,15 @@ function toUsage(u: Record<string, unknown>): TokenUsage {
     output: num(u['output_tokens']),
     cacheRead: num(u['cache_read_input_tokens']),
     cacheCreation: num(u['cache_creation_input_tokens']),
+    reasoning: 0,
   };
+}
+
+function utcDateOf(timestamp: unknown): string | null {
+  if (typeof timestamp !== 'string') return null;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
 }
 
 function fileFromToolUse(block: Record<string, unknown>): FileEvidence | null {
@@ -58,10 +66,16 @@ export function agentTurnsFromClaudeLines(lines: readonly unknown[]): AgentTurn[
     if (!isObject(raw)) continue;
     const message = raw['message'];
     if (!isObject(message) || !isObject(message['usage'])) continue;
+    const date = utcDateOf(raw['timestamp']);
+    const model = typeof message['model'] === 'string' ? message['model'] : '';
+    if (!date || !model) continue;
 
     turns.push({
       sessionId: typeof raw['sessionId'] === 'string' ? raw['sessionId'] : '',
       index: turns.length,
+      source: 'claude',
+      date,
+      model,
       cwd: typeof raw['cwd'] === 'string' ? raw['cwd'] : null,
       usage: toUsage(message['usage']),
       files: filesOf(message),

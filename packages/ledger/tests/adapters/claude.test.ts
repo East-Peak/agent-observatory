@@ -8,8 +8,10 @@ describe('agentTurnsFromClaudeLines — raw Claude transcript → stable AgentTu
       {
         sessionId: 'S',
         cwd: '/p/repo',
+        timestamp: '2026-07-02T23:30:00-07:00',
         message: {
           role: 'assistant',
+          model: 'claude-opus-4-8',
           usage: {
             input_tokens: 10,
             output_tokens: 5,
@@ -25,8 +27,11 @@ describe('agentTurnsFromClaudeLines — raw Claude transcript → stable AgentTu
     expect(turns[0]).toMatchObject({
       sessionId: 'S',
       index: 0,
+      source: 'claude',
+      date: '2026-07-03',
+      model: 'claude-opus-4-8',
       cwd: '/p/repo',
-      usage: { input: 10, output: 5, cacheRead: 100, cacheCreation: 2 },
+      usage: { input: 10, output: 5, cacheRead: 100, cacheCreation: 2, reasoning: 0 },
       files: [],
     });
   });
@@ -36,8 +41,10 @@ describe('agentTurnsFromClaudeLines — raw Claude transcript → stable AgentTu
       {
         sessionId: 'S',
         cwd: '/p',
+        timestamp: '2026-07-03T12:00:00.000Z',
         message: {
           role: 'assistant',
+          model: 'claude-opus-4-8',
           usage: { output_tokens: 1 },
           content: [
             { type: 'tool_use', name: 'Edit', input: { file_path: '/p/a.ts' } },
@@ -62,11 +69,32 @@ describe('agentTurnsFromClaudeLines — raw Claude transcript → stable AgentTu
   });
 
   it('defaults missing token classes to 0, missing cwd to null, missing sessionId to empty', () => {
-    const [turn] = agentTurnsFromClaudeLines([{ message: { usage: { output_tokens: 7 } } }]);
+    const [turn] = agentTurnsFromClaudeLines([
+      {
+        timestamp: '2026-07-03T12:00:00.000Z',
+        message: { model: 'claude-opus-4-8', usage: { output_tokens: 7 } },
+      },
+    ]);
     expect(turn).toMatchObject({
       sessionId: '',
+      source: 'claude',
+      date: '2026-07-03',
+      model: 'claude-opus-4-8',
       cwd: null,
-      usage: { input: 0, output: 7, cacheRead: 0, cacheCreation: 0 },
+      usage: { input: 0, output: 7, cacheRead: 0, cacheCreation: 0, reasoning: 0 },
     });
+  });
+
+  it('skips billable rows missing model or a parseable timestamp (fail closed, no silent defaults)', () => {
+    expect(
+      agentTurnsFromClaudeLines([
+        { timestamp: '2026-07-03T12:00:00.000Z', message: { usage: { output_tokens: 1 } } },
+        { message: { model: 'claude-opus-4-8', usage: { output_tokens: 1 } } },
+        {
+          timestamp: 'not-a-date',
+          message: { model: 'claude-opus-4-8', usage: { output_tokens: 1 } },
+        },
+      ]),
+    ).toEqual([]);
   });
 });
