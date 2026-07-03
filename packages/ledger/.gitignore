@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+dist/
+.DS_Store
+
+# The derived ledger DATA never lives in this repo — it is local, private, and rebuildable from
+# transcripts (see the decision's privacy contract). Only CODE + sanitized fixtures belong here.
+*.local
+/data/private/

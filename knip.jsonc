@@ -5,6 +5,9 @@
 	// Export/type checks deferred to a later triage.
 	"include": ["files", "dependencies"],
 	"ignore": [
+		// Workspace packages own their own knip/gate profile — the observatory's dead-code
+		// gate must not judge them (run their gates via `npm --workspace <pkg> run verify`).
+		"packages/**",
 		// All invoked by the /goal verification harness (scripts/verify.mjs) via
 		// execSync / `vitest run -c` strings, or as a config setupFile — knip
 		// can't trace those, so they are NOT dead. Do not delete.

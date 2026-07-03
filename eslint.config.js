@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import prettier from 'eslint-config-prettier'
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules', '.verify-logs'] },
+  { ignores: ['dist', 'coverage', 'node_modules', '.verify-logs', 'packages/**'] },
 
   {
     files: ['**/*.{js,mjs,cjs,ts,tsx}'],

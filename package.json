@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "engines": {
     "node": ">=23.6.0"
   },
@@ -22,7 +25,8 @@
     "verify:demo-ready": "node scripts/verify.mjs --demo-ready",
     "verify:complete": "node scripts/verify.mjs --complete",
     "certify:complete": "node scripts/certify.mjs",
-    "arch:graph": "npx --yes madge --ts-config tsconfig.json --extensions ts,tsx --json src/main.tsx | node tools/arch-graph.mjs"
+    "arch:graph": "npx --yes madge --ts-config tsconfig.json --extensions ts,tsx --json src/main.tsx | node tools/arch-graph.mjs",
+    "verify:all": "npm run verify && npm --workspace packages/ledger run verify"
   },
   "dependencies": {
     "clsx": "^2.1.1",
