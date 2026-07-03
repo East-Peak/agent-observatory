@@ -24,6 +24,8 @@ export interface AgentTurn {
   readonly usage: TokenUsage | null;
   /** File operations performed in this turn, in order. */
   readonly files: readonly FileEvidence[];
+  /** Shell commands invoked in this turn, in order. */
+  readonly commands: readonly string[];
 }
 
 export interface FileEvidence {
@@ -53,8 +55,10 @@ export interface TurnAllocation {
   readonly target: Target;
   readonly evidence: EvidenceCode;
   readonly confidence: Confidence;
+  /** Relative share when one turn carries multiple same-tier evidence signals. */
+  readonly weight: number;
 }
-export type EvidenceCode = 'file-mutate' | 'file-read' | 'cwd' | 'none';
+export type EvidenceCode = 'file-mutate' | 'bash-target' | 'file-read' | 'cwd' | 'none';
 export type Confidence = 'strong' | 'contextual' | 'none';
 
 /** Prices one turn's token usage in integer pico-USD. Injected so the money engine stays a dependency. */
@@ -65,6 +69,7 @@ export interface TargetAllocation {
   readonly target: Target;
   readonly costPico: bigint;
   readonly tokens: TokenUsage;
+  readonly evidence: readonly EvidenceCode[];
 }
 
 /** The durable ledger row for one session: cost allocated across targets, reconciling to the total. */

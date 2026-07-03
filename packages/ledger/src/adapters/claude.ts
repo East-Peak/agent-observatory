@@ -60,6 +60,19 @@ function filesOf(message: Record<string, unknown>): FileEvidence[] {
   return files;
 }
 
+function commandsOf(message: Record<string, unknown>): string[] {
+  const content = message['content'];
+  if (!Array.isArray(content)) return [];
+  const commands: string[] = [];
+  for (const block of content) {
+    if (!isObject(block) || block['type'] !== 'tool_use' || block['name'] !== 'Bash') continue;
+    const input = block['input'];
+    const command = isObject(input) ? input['command'] : undefined;
+    if (typeof command === 'string') commands.push(command);
+  }
+  return commands;
+}
+
 export function agentTurnsFromClaudeLines(lines: readonly unknown[]): AgentTurn[] {
   const turns: AgentTurn[] = [];
   for (const raw of lines) {
@@ -79,6 +92,7 @@ export function agentTurnsFromClaudeLines(lines: readonly unknown[]): AgentTurn[
       cwd: typeof raw['cwd'] === 'string' ? raw['cwd'] : null,
       usage: toUsage(message['usage']),
       files: filesOf(message),
+      commands: commandsOf(message),
     });
   }
   return turns;

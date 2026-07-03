@@ -21,6 +21,7 @@ const turn = (over: Partial<AgentTurn>): AgentTurn => ({
   cwd: null,
   usage: usage(0),
   files: [],
+  commands: [],
   ...over,
 });
 
@@ -92,6 +93,59 @@ describe('allocateSession', () => {
       cacheCreation: 23,
       reasoning: 30,
     });
+  });
+
+  it('splits one mixed-evidence turn across targets by largest remainder', () => {
+    const row = allocateSession(
+      [
+        turn({
+          usage: usage(5, { input: 1, cacheRead: 3, cacheCreation: 1, reasoning: 1 }),
+          files: [{ path: '/p/a/src/app.ts', kind: 'mutate' }],
+          commands: ['git -C /p/b status'],
+        }),
+      ],
+      map,
+      () => 101n,
+    );
+
+    expect(row.totalCostPico).toBe(101n);
+    expect(row.totalTokens).toEqual({ input: 1, output: 5, cacheRead: 3, cacheCreation: 1, reasoning: 1 });
+    expect(row.allocations).toEqual([
+      {
+        target: { kind: 'repo', key: '/p/a' },
+        costPico: 51n,
+        tokens: { input: 1, output: 3, cacheRead: 2, cacheCreation: 1, reasoning: 1 },
+        evidence: ['file-mutate'],
+      },
+      {
+        target: { kind: 'repo', key: '/p/b' },
+        costPico: 50n,
+        tokens: { input: 0, output: 2, cacheRead: 1, cacheCreation: 0, reasoning: 0 },
+        evidence: ['bash-target'],
+      },
+    ]);
+  });
+
+  it('lets convergent strong evidence reinforce a target before splitting', () => {
+    const row = allocateSession(
+      [
+        turn({
+          usage: usage(10),
+          files: [
+            { path: '/p/a/src/app.ts', kind: 'mutate' },
+            { path: '/p/b/src/app.ts', kind: 'mutate' },
+          ],
+          commands: ['git -C /p/a status'],
+        }),
+      ],
+      map,
+      () => 100n,
+    );
+
+    expect(row.allocations.map((a) => [a.target.key, a.costPico, a.tokens.output, a.evidence])).toEqual([
+      ['/p/a', 67n, 7, ['file-mutate', 'bash-target']],
+      ['/p/b', 33n, 3, ['file-mutate']],
+    ]);
   });
 
   it('reconciles EXACTLY — Σ allocations.costPico === totalCostPico (BigInt, no rounding loss)', () => {

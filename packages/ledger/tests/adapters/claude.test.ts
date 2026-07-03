@@ -63,6 +63,28 @@ describe('agentTurnsFromClaudeLines — raw Claude transcript → stable AgentTu
     ]);
   });
 
+  it('extracts Bash commands as separate command evidence', () => {
+    const [turn] = agentTurnsFromClaudeLines([
+      {
+        sessionId: 'S',
+        cwd: '/p',
+        timestamp: '2026-07-03T12:00:00.000Z',
+        message: {
+          role: 'assistant',
+          model: 'claude-opus-4-8',
+          usage: { output_tokens: 1 },
+          content: [
+            { type: 'tool_use', name: 'Bash', input: { command: 'git -C /p/a status' } },
+            { type: 'tool_use', name: 'Bash', input: { command: 'npm --prefix packages/ledger test' } },
+            { type: 'tool_use', name: 'Bash', input: { command: 123 } },
+          ],
+        },
+      },
+    ]);
+
+    expect(turn?.commands).toEqual(['git -C /p/a status', 'npm --prefix packages/ledger test']);
+  });
+
   it('skips lines without usage and tolerates malformed lines (external schema)', () => {
     const lines = [null, 'garbage', {}, { message: {} }, { message: { usage: null } }];
     expect(agentTurnsFromClaudeLines(lines)).toEqual([]);
@@ -82,6 +104,7 @@ describe('agentTurnsFromClaudeLines — raw Claude transcript → stable AgentTu
       model: 'claude-opus-4-8',
       cwd: null,
       usage: { input: 0, output: 7, cacheRead: 0, cacheCreation: 0, reasoning: 0 },
+      commands: [],
     });
   });
 
