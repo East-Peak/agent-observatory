@@ -1,7 +1,7 @@
 # Agent Observatory — historical v2 panel build runbook
 
 The v2 panel loop is complete. All six panels are live in `config/panels.json`, and
-`certify:complete --expected-baseline-sha 3e58ef21198b5b8e961a65fb3e06fd9573d2361b` prints
+`certify:complete --expected-baseline-sha 7f026bb1c5fb8dd20f411625311948801925692b` prints
 `OBSERVATORY-V2-COMPLETE` on the current clean tree. Keep this file as the verifier/DOM contract reference
 for future UI work, not as the current project checklist.
 
