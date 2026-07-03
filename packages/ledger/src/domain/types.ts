@@ -53,3 +53,23 @@ export interface TurnAllocation {
 }
 export type EvidenceCode = 'file-mutate' | 'file-read' | 'cwd' | 'none';
 export type Confidence = 'strong' | 'contextual' | 'none';
+
+/** Prices one turn's token usage in integer pico-USD. Injected so the money engine stays a dependency. */
+export type Pricer = (usage: TokenUsage) => bigint;
+
+/** One target's slice of a session: its normalized cost + a token volume for context. */
+export interface TargetAllocation {
+  readonly target: Target;
+  readonly costPico: bigint;
+  readonly outputTokens: number;
+}
+
+/** The durable ledger row for one session: cost allocated across targets, reconciling to the total. */
+export interface SessionLedgerRow {
+  readonly sessionId: string;
+  /** Billable turns allocated. */
+  readonly turns: number;
+  readonly totalCostPico: bigint;
+  /** Per-target slices, cost-descending; `Σ costPico === totalCostPico` exactly. */
+  readonly allocations: readonly TargetAllocation[];
+}
