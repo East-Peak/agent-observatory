@@ -1,0 +1,21 @@
+{
+	"$schema": "https://unpkg.com/knip@6/schema.json",
+	// Dead-code gate (2026-07-03). Gates the low-false-positive classes — dead
+	// FILES and unused DEPENDENCIES — so new dead code fails when knip runs.
+	// Export/type checks deferred to a later triage.
+	"include": ["files", "dependencies"],
+	"ignore": [
+		// All invoked by the /goal verification harness (scripts/verify.mjs) via
+		// execSync / `vitest run -c` strings, or as a config setupFile — knip
+		// can't trace those, so they are NOT dead. Do not delete.
+		"scripts/livelock-guard.mjs", // execSync'd by verify.mjs
+		"vitest.demo.config.ts", // `vitest run -c` in verify.mjs (panel-smoke)
+		"vitest.oracle.config.ts", // `vitest run -c` in verify.mjs (FROZEN panel oracle)
+		"tests/oracle/oracle.setup.ts" // setupFiles of vitest.oracle.config.ts
+	],
+	"ignoreDependencies": [
+		// The core data source — invoked as a CLI binary (execFileSync in
+		// scripts/ingest.mjs), never imported, so knip can't see it's used.
+		"ccusage"
+	]
+}
