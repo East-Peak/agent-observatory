@@ -35,29 +35,27 @@ ccusage (pinned) ──▶ decoders + resolver ──▶ canonical UsageRecord[]
 Each layer is a small, independently testable unit; money stays exact until it's formatted to USD at the very
 last render step.
 
-## Per-project attribution (read this if everything shows as *Unattributed*)
+## Per-project attribution
 
-Attribution follows the directory a session is **launched** from — `ccusage --instances` reports usage per
-session working directory, and the resolver forward-matches that directory against known git roots
-(discovered under `~/projects` and `~/.openclaw/workspace`; see `scripts/ingest.mjs`). A directory *inside*
-a repo attributes to the enclosing repo (longest match wins); no match fails closed to `__unattributed__`.
+The shipped dashboard currently shows the legacy `ccusage --instances` view: Claude usage is grouped by the
+directory a session was **launched** from, then forward-matched against known git roots (see
+`scripts/ingest.mjs`). That explains today's *Unattributed* rows, but it is not the long-term accounting
+model and should not train a launch ritual.
 
-Two practical consequences:
+The active ledger work lives in `packages/ledger`: raw agent transcripts are adapted into stable turns,
+classified by the breadcrumbs each turn leaves (file activity, per-turn cwd, and later Bash targets), and
+allocated into a first-class local session ledger. Once that projection replaces the legacy dashboard input,
+project cost follows the work that actually happened rather than the terminal's starting directory.
 
-- **Launch the agent from inside the repo you're working on.** A session started from your home directory
-  lands in *Unattributed* even if it spends the whole time working on repos — `cd`-ing around after launch
-  doesn't change the session's attribution.
-- Codex and OpenClaw report no working directory, so they appear as **tool rows** (the heatmap's Tools
-  strip), never in the project grid — a "project share" always means repo + unattributed, tools excluded.
-
-The By Project panel calls this out automatically when the unattributed share exceeds 50%.
+Until that projection lands, Codex and OpenClaw remain tool rows in the heatmap's Tools strip, and the
+By Project grid means repo + unattributed Claude work with tool rows excluded.
 
 ## Stack
 
 Vite · React · TypeScript (strict) · **Tailwind v4 + shadcn/ui** (dark, on a validated dataviz palette) ·
 vitest/jsdom · ESLint flat config (`--max-warnings 0`). Money math is `BigInt` integer-string pico-USD
-throughout; per-project attribution resolves each record's cwd to its git-toplevel repo (nested cwds roll
-up; unresolved → `__unattributed__`).
+throughout; the current dashboard resolves each `ccusage` instance cwd to its git-toplevel repo, while the
+ledger package is the replacement path for activity-derived attribution.
 
 ## Scripts
 

@@ -1,10 +1,12 @@
-# Agent Observatory — build runbook (read EVERY iteration)
+# Agent Observatory — historical v2 panel build runbook
 
-This is the authoritative per-iteration runbook for the autonomous `/goal` run. Re-read it at the
-start of every iteration. Each iteration: pick the **lowest unchecked step NOT in Blocked / Skipped**,
-implement it TDD (red → green), reach `npm run verify:step` green, **commit + push**, then run
-`npm run verify:demo-ready` (it gates only currently-`live` panels and checks git clean/pushed, so it
-only passes after pushing). Tick a box **only** on a green demo-ready.
+The v2 panel loop is complete. All six panels are live in `config/panels.json`, and
+`certify:complete --expected-baseline-sha 3e58ef21198b5b8e961a65fb3e06fd9573d2361b` prints
+`OBSERVATORY-V2-COMPLETE` on the current clean tree. Keep this file as the verifier/DOM contract reference
+for future UI work, not as the current project checklist.
+
+Historical loop rule: each iteration picked the lowest unchecked step, implemented it TDD (red → green),
+reached `npm run verify:step`, committed + pushed, then ran `npm run verify:demo-ready`.
 
 If a gate fails, **fix the app or data** — never edit a frozen file, the rate-card, any golden, or
 weaken a gate (`verifier-integrity` FAILs). If the baseline tag or any frozen/golden fixture is missing
@@ -65,9 +67,9 @@ Every panel applies the SAME shared `(range, source)` scope and renders the shar
 - **activityFeed** (`/activity-feed`): metric `total-cost`(cost); one `feed-item` per scoped record,
   `data-feed-key="<source>|<date>|<model>|<projectKey>"`, `data-feed-cost-pico`(cost), `data-feed-date`, `data-feed-source`.
 
-The four panels above are the v1 set — **already live** at the v2 baseline. The two below are the v2
-build targets (dormant in the oracle until `config/panels.json` promotes them). Their recompute is the
-frozen `recomputeContributionHeatmap` / `recomputeByProject` in the oracle — match it EXACTLY.
+The four panels above are the v1 set. The two below are the v2 panels, now live as well. Their recompute is
+the frozen `recomputeContributionHeatmap` / `recomputeByProject` in the oracle — match it EXACTLY for any
+future panel edits.
 
 - **contributionHeatmap** (`/contribution`): a dense **project × time** grid in two sections. **Project
   grid** rows = repos + `__unattributed__` (kind `repo`/`unattributed`), ordered by effort **desc** with
@@ -102,16 +104,15 @@ special-case the public golden rows.
 
 The **6** required panels are tracked in `config/panels.json` (`"status": "live"` promotes a panel). A
 panel goes live only when its `*.demo.test.tsx` (calling `describeLivePanel`) + `panel-golden` +
-`pipeline-coupling` gates pass. At the **v2 baseline the four v1 panels are already live** — the two v2
-panels below are the build targets (`required-panels-live` is the sole red gate until BOTH go live).
+`pipeline-coupling` gates pass. All six panels are live; future panel changes must preserve those gates.
 
 - [x] **spendOverview** — normalized $ + tokens, daily series + sparkline + delta (v1, live)
 - [x] **bySourceModel** — split by source & model, breakdown rows (v1, live)
 - [x] **cacheEfficiency** — cache-read vs fresh-input token mix + implied $ saved (v1, live)
 - [x] **activityFeed** — sessions over time + recent-runs list (v1, live)
-- [ ] **contributionHeatmap** — project × time colour grid (project rows + Tools strip; Daily/Weekly/
+- [x] **contributionHeatmap** — project × time colour grid (project rows + Tools strip; Daily/Weekly/
       Monthly × Tokens/$ toggles; per-section intensity; focus→(source,model) breakdown)
-- [ ] **byProject** — repo-grid leaderboard: cost + token share of the grid (repos desc, Unattributed last)
+- [x] **byProject** — repo-grid leaderboard: cost + token share of the grid (repos desc, Unattributed last)
 
 ## Supporting steps
 
@@ -120,8 +121,8 @@ panels below are the build targets (`required-panels-live` is the sole red gate 
 - [x] `scripts/ingest.mjs` (+ `--from-fixture` + fake-ccusage binary) — `ingest-fixture` / `ingest-argv`
       green; the v2 project ingest (`--instances` decoder + resolver) is built + frozen (`project-ingest-contract`)
 - [x] Per-project engine (`projectIdentity` / `buckets` / `intensity` / `aggregateByProjectPeriod` /
-      `aggregateByProject`) + snapshot `projects` registry — all built + frozen; the two panels only
-      RENDER these, they do not re-implement them
+      `aggregateByProject`) + snapshot `projects` registry — all built + frozen; panels render these, they
+      do not re-implement them
 
 ## Blocked / Skipped
 
