@@ -14,6 +14,7 @@ coverage
 # generated snapshot + report-only attribution status (rebuilt from fixtures / live ccusage)
 data/snapshot.json
 data/status.json
+data/trust.json
 
 # raw ccusage captures (regenerated, not committed)
 data/fixtures/raw-*

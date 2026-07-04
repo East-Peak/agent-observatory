@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from '@/App'
 import { selectDataSource } from '@/data/realDataSource'
 import type { Snapshot } from '@/domain/types'
+import { selectTrustSidecar, type TrustSidecar } from '@/domain/trustSidecar'
 import '@/styles/theme.css'
 
 const rootElement = document.getElementById('root')
@@ -15,10 +16,23 @@ if (!rootElement) {
 // absent until `npm run ingest`) yields an empty record, so a fresh clone still builds and falls
 // back to the synthetic fixtures. When the file exists Vite inlines it — keeping the whole data
 // seam synchronous (no fetch, no loading state). Tests/oracle/demo never go through here.
-const ingested = import.meta.glob<Snapshot>('/data/snapshot.json', { eager: true, import: 'default' })
+const ingested = import.meta.glob<Snapshot>('/data/snapshot.json', {
+  eager: true,
+  import: 'default',
+})
+const trustSidecar = import.meta.glob<TrustSidecar>('/data/trust.json', {
+  eager: true,
+  import: 'default',
+})
+const selectedTrustSidecar = selectTrustSidecar(
+  trustSidecar['/data/trust.json'],
+)
 
 createRoot(rootElement).render(
   <StrictMode>
-    <App dataSource={selectDataSource(ingested['/data/snapshot.json'])} />
+    <App
+      dataSource={selectDataSource(ingested['/data/snapshot.json'])}
+      {...(selectedTrustSidecar ? { trustSidecar: selectedTrustSidecar } : {})}
+    />
   </StrictMode>,
 )

@@ -20,6 +20,7 @@
     "knip": "knip",
     "verify": "npm run lint && npm run knip && npm run test:run",
     "ingest": "node scripts/ingest.mjs",
+    "trust:sidecar": "node scripts/trust-sidecar.mjs",
     "data:generate": "tsx scripts/data-generate.ts",
     "verify:step": "node scripts/verify.mjs",
     "verify:demo-ready": "node scripts/verify.mjs --demo-ready",

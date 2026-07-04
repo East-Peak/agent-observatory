@@ -1,10 +1,16 @@
 import { useDataSource } from '@/data/DataSourceContext'
+import { useTrustSidecar } from '@/data/TrustSidecarContext'
 import { useScope } from '@/app/ScopeProvider'
 import { ScopeBar } from '@/app/ScopeBar'
 import { Card, CardEyebrow, CardHeader, CardTitle } from '@/components/ui/card'
 import { RANGE_OPTIONS } from '@/domain/dateRange'
 import { SOURCE_OPTIONS } from '@/domain/sources'
 import { metaForKey, UNATTRIBUTED } from '@/domain/projects'
+import {
+  isDirectTrustKind,
+  summarizeTrustSidecar,
+  type TrustTargetKind,
+} from '@/domain/trustSidecar'
 import {
   formatUsdFromPico,
   formatTokensCompact,
@@ -27,10 +33,12 @@ const UNATTRIBUTED_STRIPE =
 
 export function ByProjectPanel() {
   const dataSource = useDataSource()
+  const trustSidecar = useTrustSidecar()
   const { scope } = useScope()
   const snapshot = dataSource.getSnapshot()
   const card = dataSource.getRateCard()
   const model = selectByProject(snapshot, card, scope.range, scope.source)
+  const trustSummary = summarizeTrustSidecar(trustSidecar)
 
   const rangeLabel =
     RANGE_OPTIONS.find((o) => o.key === scope.range)?.label ?? ''
@@ -64,6 +72,29 @@ export function ByProjectPanel() {
 
       <ScopeBar />
 
+      {trustSidecar && trustSummary && (
+        <div
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground"
+          aria-label="Ledger trust"
+        >
+          <span className="font-medium text-secondary-foreground">
+            Ledger trust
+          </span>
+          <span>
+            {formatPercent(toBasisPoints(trustSummary.directShare))} direct
+          </span>
+          <span>
+            {trustSidecar.ledger.exceptionsCurrent} current{' '}
+            {trustSidecar.ledger.exceptionsCurrent === 1
+              ? 'exception'
+              : 'exceptions'}
+          </span>
+          {trustSidecar.ledger.lastBackfillAt && (
+            <span>backfill {trustSidecar.ledger.lastBackfillAt}</span>
+          )}
+        </div>
+      )}
+
       {model.isEmpty ? (
         <p
           className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground"
@@ -96,6 +127,7 @@ export function ByProjectPanel() {
             {model.rows.map((r, i) => {
               const barPct = r.tokenShareBp / 100 // basis points → % of the grid (the actual share, not rank-relative)
               const isUnattributed = r.projectKey === UNATTRIBUTED
+              const projectTrust = trustSidecar?.perProject[r.projectKey]
               return (
                 <li key={r.projectKey} className="flex items-center gap-3">
                   <span className="w-5 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
@@ -107,6 +139,14 @@ export function ByProjectPanel() {
                         className={`truncate text-sm font-medium ${isUnattributed ? 'text-muted-foreground italic' : 'text-foreground'}`}
                       >
                         {labelOf(r.projectKey)}
+                        {projectTrust && (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            {trustLabel(
+                              projectTrust.targetKind,
+                              projectTrust.evidenceShare,
+                            )}
+                          </span>
+                        )}
                       </span>
                       <span
                         data-testid="breakdown-row"
@@ -167,4 +207,13 @@ export function ByProjectPanel() {
       )}
     </Card>
   )
+}
+
+function trustLabel(kind: TrustTargetKind, evidenceShare: number): string {
+  const group = isDirectTrustKind(kind) ? 'direct' : 'overhead'
+  return `${formatPercent(toBasisPoints(evidenceShare))} ${group}`
+}
+
+function toBasisPoints(share: number): number {
+  return Math.round(share * 10_000)
 }
