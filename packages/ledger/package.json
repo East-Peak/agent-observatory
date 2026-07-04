@@ -11,6 +11,7 @@
     "lint": "eslint . --max-warnings 0",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
+    "backfill": "tsx src/cli/backfill.ts",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test"
   },
   "devDependencies": {
