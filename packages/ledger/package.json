@@ -11,8 +11,10 @@
     "lint": "eslint . --max-warnings 0",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
+    "init": "tsx src/cli/init.ts",
     "backfill": "tsx src/cli/backfill.ts",
     "ops:install": "tsx src/cli/install-ops.ts",
+    "ops:uninstall": "tsx src/cli/uninstall-ops.ts",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test"
   },
   "devDependencies": {

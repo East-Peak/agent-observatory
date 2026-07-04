@@ -8,35 +8,35 @@ import {
 describe('project-map construction', () => {
   it('maps repo roots, workspace project docs, and accounting buckets to opaque project keys', () => {
     const map = buildLedgerProjectMap({
-      workspaceRoot: '/Users/example/.openclaw/workspace',
-      repoRoots: ['/Users/example/projects/example-families', '/Users/example/projects/example-observatory'],
-      workspaceProjectNames: ['example-observatory', 'example-civic-graph'],
+      workspaceRoot: '/Users/example/.config/agent-observatory/workspace',
+      repoRoots: ['/Users/example/projects/example-app', '/Users/example/projects/example-tooling'],
+      workspaceProjectNames: ['example-planning', 'example-tooling'],
       version: 'map-test',
     });
 
     expect(map).toEqual({
       version: 'map-test',
-      workspaceRoot: '/Users/example/.openclaw/workspace',
+      workspaceRoot: '/Users/example/.config/agent-observatory/workspace',
       targets: [
         {
           kind: 'repo',
-          key: '/Users/example/projects/example-families',
-          projectKey: opaqueProjectKeyFromName('example-families'),
+          key: '/Users/example/projects/example-app',
+          projectKey: opaqueProjectKeyFromName('example-app'),
         },
         {
           kind: 'repo',
-          key: '/Users/example/projects/example-observatory',
-          projectKey: opaqueProjectKeyFromName('example-observatory'),
+          key: '/Users/example/projects/example-tooling',
+          projectKey: opaqueProjectKeyFromName('example-tooling'),
         },
         {
           kind: 'direct',
-          key: 'example-civic-graph',
-          projectKey: opaqueProjectKeyFromName('example-civic-graph'),
+          key: 'example-planning',
+          projectKey: opaqueProjectKeyFromName('example-planning'),
         },
         {
           kind: 'direct',
-          key: 'example-observatory',
-          projectKey: opaqueProjectKeyFromName('example-observatory'),
+          key: 'example-tooling',
+          projectKey: opaqueProjectKeyFromName('example-tooling'),
         },
         { kind: 'meta', key: 'workspace', projectKey: 'workspace_meta' },
         { kind: 'scratch', key: 'scratch', projectKey: 'scratch' },
@@ -92,6 +92,33 @@ describe('project-map construction', () => {
     expect(map.targets.find((target) => target.kind === 'repo' && target.key === '/p/b')?.projectKey).toMatch(
       /^p_[a-f0-9]{16}$/,
     );
+  });
+
+  it('preserves existing manual targets that discovery did not see', () => {
+    const map = buildLedgerProjectMap({
+      workspaceRoot: '/w',
+      repoRoots: ['/p/a'],
+      existingMap: {
+        version: 'map-v1',
+        workspaceRoot: '/old-w',
+        targets: [
+          { kind: 'repo', key: '/external/manual-repo', projectKey: 'manual_repo_key' },
+          { kind: 'direct', key: 'manual-notes', projectKey: 'manual_notes_key' },
+        ],
+      },
+    });
+
+    expect(map.workspaceRoot).toBe('/w');
+    expect(map.targets).toContainEqual({
+      kind: 'repo',
+      key: '/external/manual-repo',
+      projectKey: 'manual_repo_key',
+    });
+    expect(map.targets).toContainEqual({
+      kind: 'direct',
+      key: 'manual-notes',
+      projectKey: 'manual_notes_key',
+    });
   });
 
   it('validates required buckets and target shape before launchd uses a map', () => {

@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import { buildLedgerProjectMap, validateLedgerProjectMap } from '../domain/projectMap.js';
 import { discoverGitRoots, discoverWorkspaceProjectNames, readLedgerProjectMap } from '../io/projectMap.js';
 import { installLedgerOps, type LedgerOpsConfig } from '../ops/install.js';
+import { defaultWorkspaceRoot } from './init.js';
 
 interface InstallOpsArgs extends LedgerOpsConfig {
   readonly projectsRoot: string;
@@ -55,8 +56,8 @@ export function parseInstallOpsArgs(argv: readonly string[]): InstallOpsArgs {
   const defaults: InstallOpsArgs = {
     repoDir: rootDir,
     projectsRoot: join(home, 'projects'),
-    workspaceRoot: join(home, '.openclaw/workspace'),
-    opsDir: join(home, '.openclaw/workspace/ops/agent-observatory-ledger'),
+    workspaceRoot: defaultWorkspaceRoot(home),
+    opsDir: join(home, '.local/share/agent-observatory/ops'),
     configDir: join(home, '.config/agent-observatory'),
     storeDir: join(home, '.local/share/agent-observatory/ledger'),
     backupDir: join(home, '.local/share/agent-observatory/ledger-backups'),
@@ -65,8 +66,8 @@ export function parseInstallOpsArgs(argv: readonly string[]): InstallOpsArgs {
     rateCardPath: join(rootDir, 'rateCard.json'),
     projectMapPath: join(home, '.config/agent-observatory/project-map.json'),
     graceMinutes: 5,
-    backfillLabel: 'cc.eastpeak.agent-observatory.ledger-backfill',
-    backupLabel: 'cc.eastpeak.agent-observatory.ledger-backup',
+    backfillLabel: 'local.agent-observatory.ledger-backfill',
+    backupLabel: 'local.agent-observatory.ledger-backup',
     force: false,
     dryRun: false,
   };

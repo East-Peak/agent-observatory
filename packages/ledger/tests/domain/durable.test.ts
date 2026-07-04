@@ -17,9 +17,9 @@ const tokens = (output: number, overrides: Partial<TokenUsage> = {}): TokenUsage
 
 const projectMap: LedgerProjectMap = {
   version: 'map-v1',
-  workspaceRoot: '/Users/tammypais/.openclaw/workspace',
+  workspaceRoot: '/Users/example/.config/agent-observatory/workspace',
   targets: [
-    { kind: 'repo', key: '/Users/tammypais/projects/private-client', projectKey: 'proj_private_client' },
+    { kind: 'repo', key: '/Users/example/projects/customer-app', projectKey: 'proj_customer_app' },
     { kind: 'overhead', key: 'other', projectKey: 'bucket_overhead' },
   ],
 };
@@ -31,7 +31,7 @@ const row = (overrides: Partial<SessionLedgerRow> = {}): SessionLedgerRow => ({
   totalTokens: tokens(7),
   allocations: [
     {
-      target: { kind: 'repo', key: '/Users/tammypais/projects/private-client' },
+      target: { kind: 'repo', key: '/Users/example/projects/customer-app' },
       costPico: 123n,
       tokens: tokens(7),
       evidence: ['file-mutate', 'bash-target'],
@@ -69,7 +69,7 @@ describe('durable ledger row encoding', () => {
       total_cost_pico: '123',
       allocations: [
         {
-          project_key: 'proj_private_client',
+          project_key: 'proj_customer_app',
           target_kind: 'repo',
           cost_pico: '123',
           evidence: ['file-mutate', 'bash-target'],
@@ -78,8 +78,8 @@ describe('durable ledger row encoding', () => {
     });
 
     const json = JSON.stringify(durable);
-    expect(json).not.toContain('/Users/tammypais');
-    expect(json).not.toContain('private-client');
+    expect(json).not.toContain('/Users/example');
+    expect(json).not.toContain('customer-app');
     expect(json).not.toContain('raw-session-id');
   });
 
@@ -108,8 +108,8 @@ describe('durable ledger row encoding', () => {
 
   it('derives the classifier map from local private target mappings only', () => {
     expect(ledgerProjectMapToClassifierMap(projectMap)).toEqual({
-      workspaceRoot: '/Users/tammypais/.openclaw/workspace',
-      projectRoots: ['/Users/tammypais/projects/private-client'],
+      workspaceRoot: '/Users/example/.config/agent-observatory/workspace',
+      projectRoots: ['/Users/example/projects/customer-app'],
     });
   });
 });

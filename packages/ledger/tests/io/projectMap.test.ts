@@ -38,11 +38,12 @@ describe('project-map IO', () => {
     ]);
   });
 
-  it('writes the private project map with restrictive permissions and refuses accidental overwrite', async () => {
+  it('writes the private project map privately and requires force for changed content', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'ledger-config-'));
     await chmod(dir, 0o755);
     const path = join(dir, 'project-map.json');
     const map = buildLedgerProjectMap({ workspaceRoot: '/w', repoRoots: ['/p/a'] });
+    const changedMap = buildLedgerProjectMap({ workspaceRoot: '/w', repoRoots: ['/p/b'] });
 
     await writeLedgerProjectMap(path, map, { force: false });
     const text = await readFile(path, 'utf8');
@@ -50,7 +51,8 @@ describe('project-map IO', () => {
     expect(JSON.parse(text)).toMatchObject({ version: 'map-v1' });
     expect((await stat(dir)).mode & 0o777).toBe(0o700);
     expect((await stat(path)).mode & 0o777).toBe(0o600);
-    await expect(writeLedgerProjectMap(path, map, { force: false })).rejects.toThrow(/already exists/);
-    await expect(writeLedgerProjectMap(path, map, { force: true })).resolves.toBeUndefined();
+    await expect(writeLedgerProjectMap(path, map, { force: false })).resolves.toBeUndefined();
+    await expect(writeLedgerProjectMap(path, changedMap, { force: false })).rejects.toThrow(/already exists/);
+    await expect(writeLedgerProjectMap(path, changedMap, { force: true })).resolves.toBeUndefined();
   });
 });

@@ -10,6 +10,29 @@ exist. Runs entirely on your machine; no data leaves it.
 Feed, a GitHub-style **Contribution Heatmap** (project × time), and a **By Project** leaderboard (token
 share of the grid). All share one time-range + source scope.
 
+## Run it on your machine
+
+Prereqs: Node `>=23.6.0`, npm, git, and Claude Code installed and used at least once so local transcripts
+exist under `~/.claude/projects/`.
+
+```sh
+git clone https://github.com/East-Peak/agent-observatory.git
+cd agent-observatory
+npm ci
+npm run ledger:init -- --projects-root "$HOME/projects"
+npm run ledger:backfill -- --once
+npm run ingest
+npm run trust:sidecar
+npm run build
+npm run preview -- --host 127.0.0.1 --port 4173
+```
+
+Open <http://127.0.0.1:4173>. If your repos live somewhere else, change `--projects-root`. For the detailed
+setup, project-map schema, launchd/cron automation, and troubleshooting, see [docs/setup.md](docs/setup.md).
+
+Data stays local. The app reads Claude Code transcripts plus the project map you configure; it does **not**
+read your notes, memories, docs, email, browser data, or repo contents. See the [privacy contract](docs/privacy.md).
+
 ## Why it's interesting
 
 The dashboard is the easy part. The engineering worth a look is underneath it:
@@ -64,4 +87,8 @@ effective-dated rate card.
 | `test` · `test:run`                 | Watch / single-run vitest                                       |
 | `lint` · `format`                   | ESLint (zero warnings) · Prettier                               |
 | `data:generate`                     | Regenerate the deterministic synthetic snapshot                 |
+| `ledger:init`                       | Discover local git roots and write the private project map      |
+| `ledger:backfill`                   | Build/update the private durable ledger from Claude transcripts |
+| `ledger:ops:install` / `:uninstall` | Install/remove local launchd wrapper files for backfill/backup  |
+| `ingest` · `trust:sidecar`          | Project ledger data into gitignored dashboard artifacts         |
 | `verify:step` · `verify:demo-ready` | The fail-closed verifier (fast gates · full bar + panel oracle) |

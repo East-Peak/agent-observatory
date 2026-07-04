@@ -28,7 +28,7 @@ const DEFAULT_PROJECT_MAP = join(
 )
 const DEFAULT_BACKFILL_LOG = join(
   homedir(),
-  '.openclaw/workspace/ops/agent-observatory-ledger/backfill.log',
+  '.local/share/agent-observatory/ops/backfill.log',
 )
 const DEFAULT_OUT = join(ROOT, 'data/trust.json')
 

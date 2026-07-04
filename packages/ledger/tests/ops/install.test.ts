@@ -9,6 +9,7 @@ import {
   renderBackfillScript,
   renderBackupScript,
   renderLaunchAgentPlist,
+  uninstallLedgerOps,
   type LedgerOpsConfig,
 } from '../../src/ops/install.js';
 
@@ -23,8 +24,8 @@ const config = (root: string): LedgerOpsConfig => ({
   rateCardPath: join(root, 'repo', 'rateCard.json'),
   projectMapPath: join(root, 'config', 'project-map.json'),
   graceMinutes: 5,
-  backfillLabel: 'cc.eastpeak.agent-observatory.ledger-backfill',
-  backupLabel: 'cc.eastpeak.agent-observatory.ledger-backup',
+  backfillLabel: 'local.agent-observatory.ledger-backfill',
+  backupLabel: 'local.agent-observatory.ledger-backup',
 });
 
 describe('ledger ops install', () => {
@@ -41,9 +42,9 @@ describe('ledger ops install', () => {
       runAtLoad: true,
     });
 
-    expect(backfill).toContain(
-      '/opt/homebrew/bin/npm --workspace packages/ledger run --silent backfill -- --once',
-    );
+    expect(backfill).toContain('NPM_BIN="${NPM_BIN:-$(command -v npm || true)}"');
+    expect(backfill).toContain('"$NPM_BIN" --workspace packages/ledger run --silent backfill -- --once');
+    expect(backfill).not.toContain('/opt/homebrew/bin/npm');
     expect(backfill).toContain("--project-map '/tmp/ledger ops/config/project-map.json'");
     expect(backfill).toContain('ledger backfill already running');
     expect(backfill).not.toContain('launchctl');
@@ -81,6 +82,35 @@ describe('ledger ops install', () => {
     expect(await readFile(paths.gitignore, 'utf8')).toContain('*.log');
     expect((await stat(paths.backfillScript)).mode & 0o777).toBe(0o700);
     expect((await stat(paths.backfillPlist)).mode & 0o777).toBe(0o644);
-    await expect(installLedgerOps(cfg, map, { force: false })).rejects.toThrow(/already exists/);
+    await expect(installLedgerOps(cfg, map, { force: false })).resolves.toMatchObject({
+      filesWritten: result.filesWritten,
+    });
+  });
+
+  it('uninstalls generated launchd wrappers without deleting the private map, store, or backups', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ledger-ops-'));
+    const cfg = config(root);
+    const map = buildLedgerProjectMap({ workspaceRoot: join(root, 'workspace'), repoRoots: [cfg.repoDir] });
+    await installLedgerOps(cfg, map, { force: false });
+    const paths = ledgerOpsPaths(cfg);
+
+    const result = await uninstallLedgerOps(cfg);
+
+    expect([...result.filesRemoved].sort()).toEqual(
+      [
+        paths.backfillPlist,
+        paths.backfillScript,
+        paths.backupPlist,
+        paths.backupScript,
+        paths.gitignore,
+        paths.readme,
+      ].sort(),
+    );
+    await expect(readFile(paths.projectMap, 'utf8')).resolves.toContain('"version": "map-v1"');
+    expect(result.bootoutCommands).toEqual([
+      `launchctl bootout gui/$(id -u)/${cfg.backfillLabel}`,
+      `launchctl bootout gui/$(id -u)/${cfg.backupLabel}`,
+    ]);
+    await expect(uninstallLedgerOps(cfg)).resolves.toMatchObject({ filesRemoved: [] });
   });
 });

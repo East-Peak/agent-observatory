@@ -7,11 +7,13 @@ describe('parseInstallOpsArgs', () => {
   it('defaults to local-only ledger ops paths', () => {
     expect(parseInstallOpsArgs([])).toMatchObject({
       projectsRoot: join(homedir(), 'projects'),
-      workspaceRoot: join(homedir(), '.openclaw/workspace'),
-      opsDir: join(homedir(), '.openclaw/workspace/ops/agent-observatory-ledger'),
+      workspaceRoot: join(homedir(), '.config/agent-observatory/workspace'),
+      opsDir: join(homedir(), '.local/share/agent-observatory/ops'),
       storeDir: join(homedir(), '.local/share/agent-observatory/ledger'),
       backupDir: join(homedir(), '.local/share/agent-observatory/ledger-backups'),
       projectMapPath: join(homedir(), '.config/agent-observatory/project-map.json'),
+      backfillLabel: 'local.agent-observatory.ledger-backfill',
+      backupLabel: 'local.agent-observatory.ledger-backup',
       force: false,
       dryRun: false,
     });

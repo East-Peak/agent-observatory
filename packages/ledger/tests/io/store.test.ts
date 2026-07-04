@@ -102,7 +102,7 @@ describe('durable ledger store', () => {
     const mode = (await stat(join(store, 'exceptions.jsonl'))).mode & 0o777;
 
     expect(text).toBe(`${JSON.stringify(exception)}\n`);
-    expect(text).not.toContain('/Users/tammypais');
+    expect(text).not.toContain('/Users/example');
     expect(mode).toBe(0o600);
   });
 

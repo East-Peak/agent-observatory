@@ -41,11 +41,18 @@ export function buildLedgerProjectMap(options: BuildLedgerProjectMapOptions): Le
       key: name,
       projectKey: projectKeyForName('direct', name, name),
     }));
+  const generatedTargets = [...repoTargets, ...directTargets, ...DEFAULT_BUCKETS];
+  const generatedIdentities = new Set(
+    generatedTargets.map((target) => targetIdentity(target.kind, target.key)),
+  );
+  const preservedTargets = (options.existingMap?.targets ?? []).filter(
+    (target) => !generatedIdentities.has(targetIdentity(target.kind, target.key)),
+  );
 
   return {
     version: options.version ?? 'map-v1',
     workspaceRoot: options.workspaceRoot,
-    targets: uniqueTargets([...repoTargets, ...directTargets, ...DEFAULT_BUCKETS]),
+    targets: uniqueTargets([...generatedTargets, ...preservedTargets]),
   };
 }
 

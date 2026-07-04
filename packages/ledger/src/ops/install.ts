@@ -1,4 +1,4 @@
-import { chmod, mkdir, rename, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { LedgerProjectMap } from '../domain/durable.js';
 import { validateLedgerProjectMap } from '../domain/projectMap.js';
@@ -22,6 +22,11 @@ export interface LedgerOpsConfig {
 export interface InstallLedgerOpsResult {
   readonly filesWritten: readonly string[];
   readonly bootstrapCommands: readonly string[];
+}
+
+export interface UninstallLedgerOpsResult {
+  readonly filesRemoved: readonly string[];
+  readonly bootoutCommands: readonly string[];
 }
 
 interface LaunchAgentOptions {
@@ -114,14 +119,42 @@ export async function installLedgerOps(
   };
 }
 
+export async function uninstallLedgerOps(config: LedgerOpsConfig): Promise<UninstallLedgerOpsResult> {
+  const paths = ledgerOpsPaths(config);
+  const generatedFiles = [
+    paths.readme,
+    paths.gitignore,
+    paths.backfillScript,
+    paths.backupScript,
+    paths.backfillPlist,
+    paths.backupPlist,
+  ];
+  const filesRemoved: string[] = [];
+  for (const path of generatedFiles) {
+    if (await fileExists(path)) {
+      await rm(path, { force: true });
+      filesRemoved.push(path);
+    }
+  }
+
+  return {
+    filesRemoved,
+    bootoutCommands: [
+      `launchctl bootout gui/$(id -u)/${config.backfillLabel}`,
+      `launchctl bootout gui/$(id -u)/${config.backupLabel}`,
+    ],
+  };
+}
+
 export function renderBackfillScript(config: LedgerOpsConfig): string {
   return `#!/bin/bash
 set -uo pipefail
-export PATH="/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 REPO=${shellQuote(config.repoDir)}
 OPS=${shellQuote(config.opsDir)}
 LOG="$OPS/backfill.log"
 RUN_LOG="$OPS/.backfill.$$.log"
+NPM_BIN="\${NPM_BIN:-$(command -v npm || true)}"
 
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 mkdir -p "$OPS"
@@ -131,8 +164,12 @@ if [ -f "$LOG" ] && [ "$(stat -f%z "$LOG" 2>/dev/null || echo 0)" -gt 1048576 ];
 fi
 
 cd "$REPO" || { echo "[$(ts)] cannot cd $REPO" >> "$LOG"; exit 1; }
+if [ -z "$NPM_BIN" ]; then
+  echo "[$(ts)] npm not found on PATH" >> "$LOG"
+  exit 127
+fi
 echo "[$(ts)] ledger backfill start" >> "$LOG"
-if /opt/homebrew/bin/npm --workspace packages/ledger run --silent backfill -- --once --store ${shellQuote(
+if "$NPM_BIN" --workspace packages/ledger run --silent backfill -- --once --store ${shellQuote(
     config.storeDir,
   )} --transcripts-dir ${shellQuote(config.transcriptsDir)} --project-map ${shellQuote(
     config.projectMapPath,
@@ -281,13 +318,28 @@ async function writePrivateFile(
   mode: number,
   options: { readonly force: boolean },
 ): Promise<void> {
-  if (!options.force && (await fileExists(path))) throw new Error(`ops file already exists: ${path}`);
+  const existing = await readTextIfExists(path);
+  if (existing !== null) {
+    if (existing === content) return;
+    if (!options.force) throw new Error(`ops file already exists: ${path}`);
+  }
   await mkdir(dirname(path), { recursive: true });
   const tmp = `${path}.tmp-${process.pid}`;
   await writeFile(tmp, content, { mode });
   await chmod(tmp, mode);
   await rename(tmp, path);
   await chmod(path, mode);
+}
+
+async function readTextIfExists(path: string): Promise<string | null> {
+  try {
+    return await readFile(path, 'utf8');
+  } catch (error) {
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
+      return null;
+    }
+    throw error;
+  }
 }
 
 async function fileExists(path: string): Promise<boolean> {

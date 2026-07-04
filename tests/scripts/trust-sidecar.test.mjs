@@ -1,13 +1,23 @@
 import { execFile } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { describe, expect, it } from 'vitest'
+import { parseTrustSidecarArgs } from '../../scripts/trust-sidecar.mjs'
 
 const execFileAsync = promisify(execFile)
 
 describe('trust-sidecar CLI', () => {
+  it('defaults to the public local ops log path', () => {
+    expect(parseTrustSidecarArgs([])).toMatchObject({
+      backfillLog: join(
+        homedir(),
+        '.local/share/agent-observatory/ops/backfill.log',
+      ),
+    })
+  })
+
   it('writes data/trust.json from a durable ledger store and backfill metadata', async () => {
     const dir = join(
       tmpdir(),

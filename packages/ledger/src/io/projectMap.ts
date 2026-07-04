@@ -41,9 +41,14 @@ export async function writeLedgerProjectMap(
   options: { readonly force: boolean },
 ): Promise<void> {
   await ensurePrivateDir(dirname(path));
-  if (!options.force && (await exists(path))) throw new Error(`project map already exists: ${path}`);
+  const content = `${JSON.stringify(map, null, 2)}\n`;
+  const existing = await readTextIfExists(path);
+  if (existing !== null) {
+    if (existing === content) return;
+    if (!options.force) throw new Error(`project map already exists: ${path}`);
+  }
   const tmp = `${path}.tmp-${process.pid}`;
-  await writeFile(tmp, `${JSON.stringify(map, null, 2)}\n`, { mode: 0o600 });
+  await writeFile(tmp, content, { mode: 0o600 });
   await chmod(tmp, 0o600);
   await rename(tmp, path);
   await chmod(path, 0o600);
@@ -81,12 +86,11 @@ async function readProjectEntries(path: string): Promise<{ name: string; kind: '
   }
 }
 
-async function exists(path: string): Promise<boolean> {
+async function readTextIfExists(path: string): Promise<string | null> {
   try {
-    await readFile(path);
-    return true;
+    return await readFile(path, 'utf8');
   } catch (error) {
-    if (isNotFound(error)) return false;
+    if (isNotFound(error)) return null;
     throw error;
   }
 }
