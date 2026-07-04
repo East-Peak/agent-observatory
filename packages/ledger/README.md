@@ -39,13 +39,14 @@ Project-map shape:
 ```json
 {
   "version": "map-v1",
-  "workspaceRoot": "/Users/tammypais/.openclaw/workspace",
+  "workspaceRoot": "/Users/you/.openclaw/workspace",
   "targets": [
     {
       "kind": "repo",
-      "key": "/Users/tammypais/projects/agent-observatory",
-      "projectKey": "agent_observatory"
+      "key": "/Users/you/projects/example-repo",
+      "projectKey": "p_0123456789abcdef"
     },
+    { "kind": "direct", "key": "example-project", "projectKey": "p_0123456789abcdef" },
     { "kind": "meta", "key": "workspace", "projectKey": "workspace_meta" },
     { "kind": "scratch", "key": "scratch", "projectKey": "scratch" },
     { "kind": "overhead", "key": "other", "projectKey": "overhead_other" },

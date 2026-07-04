@@ -1,4 +1,4 @@
-import { mkdtemp, stat } from 'node:fs/promises';
+import { mkdir, mkdtemp, stat, utimes } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -25,5 +25,20 @@ describe('ledger store lock', () => {
     await withStoreLock(store, () => Promise.resolve());
 
     expect((await stat(store)).mode & 0o777).toBe(0o700);
+  });
+
+  it('reclaims stale lock directories', async () => {
+    const store = await mkdtemp(join(tmpdir(), 'ledger-store-'));
+    const lock = join(store, '.backfill.lock');
+    await mkdir(lock);
+    const old = new Date('2026-07-03T00:00:00.000Z');
+    await utimes(lock, old, old);
+
+    await expect(
+      withStoreLock(store, () => Promise.resolve('ok'), {
+        nowMs: Date.parse('2026-07-03T01:00:00.000Z'),
+        staleMs: 1_000,
+      }),
+    ).resolves.toBe('ok');
   });
 });

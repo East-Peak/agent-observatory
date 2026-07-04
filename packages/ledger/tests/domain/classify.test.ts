@@ -64,6 +64,36 @@ describe('classifyTurn — the evidence hierarchy', () => {
     });
   });
 
+  it('does not treat home and redirection tokens as workspace project names', () => {
+    const a = classifyTurn(
+      turn({
+        cwd: '/ws/projects/agent-observatory',
+        commands: ['cd ~ && rg needle 2>/dev/null'],
+      }),
+      map,
+    );
+    expect(a).toMatchObject({
+      evidence: 'cwd',
+      confidence: 'contextual',
+      target: { kind: 'direct', key: 'agent-observatory' },
+    });
+  });
+
+  it('does not treat Bash tokens under workspace projects as direct project evidence', () => {
+    const a = classifyTurn(
+      turn({
+        cwd: '/ws/projects/agent-observatory',
+        commands: ['python - <<EOF\nopen("frontend/src/app.ts")\nEOF'],
+      }),
+      map,
+    );
+    expect(a).toMatchObject({
+      evidence: 'cwd',
+      confidence: 'contextual',
+      target: { kind: 'direct', key: 'agent-observatory' },
+    });
+  });
+
   it('splits conflicting strong evidence instead of picking one dominant target', () => {
     const allocations = classifyTurnAllocations(
       turn({

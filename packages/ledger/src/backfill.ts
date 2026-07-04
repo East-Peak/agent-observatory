@@ -15,6 +15,7 @@ import { scanClaudeTranscriptFiles } from './io/scan.js';
 import {
   EXCEPTION_SCHEMA_VERSION,
   upsertDurableRows,
+  writeCurrentExceptionRecords,
   writeExceptionRecords,
   type DurableLedgerRow,
   type LedgerExceptionRecord,
@@ -111,6 +112,7 @@ export async function backfillOnce(options: BackfillOptions): Promise<BackfillSu
     allExceptions,
     options.exceptionsOut,
   );
+  await writeCurrentExceptionRecords(options.storeDir, allExceptions);
   return {
     scanned: transcriptFiles.length,
     rowsWritten: upsert.rowsWritten,

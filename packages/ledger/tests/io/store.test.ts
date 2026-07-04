@@ -6,6 +6,7 @@ import {
   readDurableRows,
   upsertDurableRows,
   writeExceptionRecords,
+  writeCurrentExceptionRecords,
   type DurableLedgerRow,
   type LedgerExceptionRecord,
 } from '../../src/io/store.js';
@@ -125,5 +126,28 @@ describe('durable ledger store', () => {
 
     expect((await stat(external)).mode & 0o777).toBe(0o755);
     expect((await stat(join(external, 'exceptions.jsonl'))).mode & 0o777).toBe(0o600);
+  });
+
+  it('overwrites current-run exceptions separately from history', async () => {
+    const store = await mkdtemp(join(tmpdir(), 'ledger-store-'));
+    const first: LedgerExceptionRecord = {
+      schema_version: 'agent-ledger-exception/v1',
+      code: 'first',
+      severity: 'error',
+      message: 'first',
+    };
+    const second: LedgerExceptionRecord = {
+      schema_version: 'agent-ledger-exception/v1',
+      code: 'second',
+      severity: 'error',
+      message: 'second',
+    };
+
+    await writeCurrentExceptionRecords(store, [first]);
+    await writeCurrentExceptionRecords(store, [second]);
+
+    const text = await readFile(join(store, 'exceptions-current.jsonl'), 'utf8');
+    expect(text).toBe(`${JSON.stringify(second)}\n`);
+    expect((await stat(join(store, 'exceptions-current.jsonl'))).mode & 0o777).toBe(0o600);
   });
 });

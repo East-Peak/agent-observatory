@@ -14,10 +14,8 @@ function isUnder(p: string, base: string): boolean {
 export function resolveTarget(path: string, map: ProjectMap): Target {
   const wsProjects = `${map.workspaceRoot}/projects`;
   if (isUnder(path, wsProjects)) {
-    const name = path
-      .slice(wsProjects.length + 1)
-      .split('/')[0]
-      ?.replace(/\.md$/, '');
+    const relativePath = path.slice(wsProjects.length + 1);
+    const name = directProjectName(relativePath.split('/')[0], relativePath);
     if (name) return { kind: 'direct', key: name };
   }
   if (isUnder(path, map.workspaceRoot)) return { kind: 'meta', key: 'workspace' };
@@ -28,4 +26,11 @@ export function resolveTarget(path: string, map: ProjectMap): Target {
 
   if (isUnder(path, '/tmp') || isUnder(path, '/private/tmp')) return { kind: 'scratch', key: 'scratch' };
   return { kind: 'overhead', key: 'other' };
+}
+
+function directProjectName(firstSegment: string | undefined, relativePath: string): string | null {
+  if (!firstSegment) return null;
+  if (firstSegment.endsWith('.md')) return firstSegment.replace(/\.md$/, '');
+  if (!relativePath.includes('/') && firstSegment.includes('.')) return null;
+  return firstSegment;
 }

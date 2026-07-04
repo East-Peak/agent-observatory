@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { backfillOnce } from '../src/backfill.js';
 import type { LedgerProjectMap } from '../src/domain/durable.js';
+import { buildLedgerProjectMap, opaqueProjectKeyFromName } from '../src/domain/projectMap.js';
 import type { RateCard } from '../../pricing/src/index.js';
 import { readDurableRows } from '../src/io/store.js';
 
@@ -250,5 +251,39 @@ describe('backfillOnce', () => {
     await expect(readDurableRows(storeDir)).resolves.toEqual([]);
     expect(exceptions).toContain('project-map-error');
     expect(exceptions).not.toContain('/var/private-work');
+  });
+
+  it('allocates workspace project docs through generated direct targets', async () => {
+    const transcriptsDir = await mkdtemp(join(tmpdir(), 'claude-transcripts-'));
+    const storeDir = await mkdtemp(join(tmpdir(), 'ledger-store-'));
+    const workspaceRoot = join(transcriptsDir, 'workspace');
+    const projectMap = buildLedgerProjectMap({
+      workspaceRoot,
+      repoRoots: [],
+      workspaceProjectNames: ['agent-observatory'],
+    });
+    const projectDoc = join(workspaceRoot, 'projects', 'agent-observatory.md');
+    await writeOldTranscript(transcriptsDir, 'workspace-doc.jsonl', [
+      JSON.stringify(
+        assistantLine({
+          cwd: workspaceRoot,
+          message: {
+            ...assistantMessageForRepo(workspaceRoot),
+            content: [{ type: 'tool_use', name: 'Edit', input: { file_path: projectDoc } }],
+          },
+        }),
+      ),
+    ]);
+
+    const summary = await backfillOnce({ transcriptsDir, storeDir, projectMap, rateCard: card, graceMs: 0 });
+    const rows = await readDurableRows(storeDir);
+
+    expect(summary).toMatchObject({ scanned: 1, rowsWritten: 1, exceptionsWritten: 0 });
+    expect(rows[0]?.allocations).toEqual([
+      expect.objectContaining({
+        project_key: opaqueProjectKeyFromName('agent-observatory'),
+        target_kind: 'direct',
+      }),
+    ]);
   });
 });

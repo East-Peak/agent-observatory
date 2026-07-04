@@ -25,6 +25,16 @@ describe('resolveTarget', () => {
       kind: 'direct',
       key: 'inkling',
     });
+    expect(
+      resolveTarget('/Users/stu/.openclaw/workspace/projects/paternity-leave-research/timeline.md', map),
+    ).toEqual({
+      kind: 'direct',
+      key: 'paternity-leave-research',
+    });
+    expect(resolveTarget('/Users/stu/.openclaw/workspace/projects/call-transcript.txt', map)).toEqual({
+      kind: 'meta',
+      key: 'workspace',
+    });
   });
 
   it('maps other workspace paths to meta', () => {

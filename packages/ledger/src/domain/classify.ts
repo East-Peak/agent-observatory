@@ -1,3 +1,4 @@
+import { homedir } from 'node:os';
 import { posix as path } from 'node:path';
 import type { AgentTurn, ProjectMap, TurnAllocation } from './types.js';
 import { resolveTarget } from './target.js';
@@ -38,7 +39,7 @@ export function classifyTurnAllocations(turn: AgentTurn, map: ProjectMap): TurnA
   for (const command of turn.commands) {
     for (const commandPath of pathsFromBashCommand(command, turn.cwd)) {
       const target = resolveTarget(commandPath, map);
-      if (target.kind === 'overhead') continue;
+      if (target.kind === 'overhead' || target.kind === 'direct') continue;
       strong.push({ target, evidence: 'bash-target', confidence: 'strong', weight: 1 });
     }
   }
@@ -85,7 +86,11 @@ function pathsFromBashCommand(command: string, cwd: string | null): string[] {
 
 function pathFromToken(token: string, cwd: string | null, forcePath: boolean): string | null {
   const cleaned = token.replace(/^[([{]+/, '').replace(/[),.;]+$/, '');
-  if (!cleaned || cleaned.startsWith('-') || /^[a-z][a-z+.-]*:\/\//i.test(cleaned)) return null;
+  if (!cleaned || cleaned.startsWith('-') || /[<>]/.test(cleaned) || /^[a-z][a-z+.-]*:\/\//i.test(cleaned)) {
+    return null;
+  }
+  if (cleaned === '~') return homedir();
+  if (cleaned.startsWith('~/')) return path.resolve(homedir(), cleaned.slice(2));
   if (cleaned.startsWith('/')) return path.normalize(cleaned);
   if (!cwd) return null;
   if (forcePath || cleaned.startsWith('./') || cleaned.startsWith('../') || cleaned.includes('/')) {

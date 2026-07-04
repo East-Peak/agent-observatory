@@ -26,6 +26,7 @@ export interface UpsertResult {
 
 const ROWS_FILE = 'rows.jsonl';
 const EXCEPTIONS_FILE = 'exceptions.jsonl';
+const CURRENT_EXCEPTIONS_FILE = 'exceptions-current.jsonl';
 
 export async function readDurableRows(storeDir: string): Promise<DurableLedgerRow[]> {
   const text = await readTextIfExists(join(storeDir, ROWS_FILE));
@@ -90,6 +91,22 @@ export async function writeExceptionRecords(
   );
   await writeJsonlPrivate(filePath, rows);
   return exceptions.length;
+}
+
+export async function writeCurrentExceptionRecords(
+  storeDir: string,
+  exceptions: readonly LedgerExceptionRecord[],
+  filePath = join(storeDir, CURRENT_EXCEPTIONS_FILE),
+): Promise<number> {
+  await ensurePrivateDir(storeDir);
+  await ensureParentDir(filePath);
+  const rows = [...exceptions].sort((a, b) =>
+    `${a.code}:${a.transcript_key ?? ''}:${a.row_key ?? ''}`.localeCompare(
+      `${b.code}:${b.transcript_key ?? ''}:${b.row_key ?? ''}`,
+    ),
+  );
+  await writeJsonlPrivate(filePath, rows);
+  return rows.length;
 }
 
 async function readTextIfExists(path: string): Promise<string> {
