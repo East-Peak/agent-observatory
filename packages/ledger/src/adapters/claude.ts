@@ -31,6 +31,10 @@ function toUsage(u: Record<string, unknown>): TokenUsage {
   };
 }
 
+function hasBillableTokens(usage: TokenUsage): boolean {
+  return usage.input + usage.output + usage.cacheRead + usage.cacheCreation + usage.reasoning > 0;
+}
+
 function utcDateOf(timestamp: unknown): string | null {
   if (typeof timestamp !== 'string') return null;
   const date = new Date(timestamp);
@@ -82,6 +86,8 @@ export function agentTurnsFromClaudeLines(lines: readonly unknown[]): AgentTurn[
     const date = utcDateOf(raw['timestamp']);
     const model = typeof message['model'] === 'string' ? message['model'] : '';
     if (!date || !model) continue;
+    const usage = toUsage(message['usage']);
+    if (!hasBillableTokens(usage)) continue;
 
     turns.push({
       sessionId: typeof raw['sessionId'] === 'string' ? raw['sessionId'] : '',
@@ -90,7 +96,7 @@ export function agentTurnsFromClaudeLines(lines: readonly unknown[]): AgentTurn[
       date,
       model,
       cwd: typeof raw['cwd'] === 'string' ? raw['cwd'] : null,
-      usage: toUsage(message['usage']),
+      usage,
       files: filesOf(message),
       commands: commandsOf(message),
     });

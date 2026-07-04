@@ -90,6 +90,28 @@ describe('agentTurnsFromClaudeLines — raw Claude transcript → stable AgentTu
     expect(agentTurnsFromClaudeLines(lines)).toEqual([]);
   });
 
+  it('skips synthetic zero-token placeholder rows as non-billable transcript metadata', () => {
+    expect(
+      agentTurnsFromClaudeLines([
+        {
+          sessionId: 'S',
+          cwd: '/p',
+          timestamp: '2026-07-03T12:00:00.000Z',
+          message: {
+            role: 'assistant',
+            model: '<synthetic>',
+            usage: {
+              input_tokens: 0,
+              output_tokens: 0,
+              cache_read_input_tokens: 0,
+              cache_creation_input_tokens: 0,
+            },
+          },
+        },
+      ]),
+    ).toEqual([]);
+  });
+
   it('defaults missing token classes to 0, missing cwd to null, missing sessionId to empty', () => {
     const [turn] = agentTurnsFromClaudeLines([
       {
