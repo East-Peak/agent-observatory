@@ -1,0 +1,232 @@
+{
+  "projectMap": {
+    "version": "map-fixture",
+    "workspaceRoot": "/Users/dev/.openclaw/workspace",
+    "targets": [
+      {
+        "kind": "repo",
+        "key": "/Users/dev/projects/alpha",
+        "projectKey": "p_alpha"
+      },
+      {
+        "kind": "direct",
+        "key": "agent-observatory",
+        "projectKey": "p_observatory"
+      },
+      {
+        "kind": "meta",
+        "key": "workspace",
+        "projectKey": "workspace_meta"
+      },
+      {
+        "kind": "scratch",
+        "key": "scratch",
+        "projectKey": "scratch"
+      },
+      {
+        "kind": "overhead",
+        "key": "other",
+        "projectKey": "overhead_other"
+      },
+      {
+        "kind": "unattributed",
+        "key": "unattributed",
+        "projectKey": "unattributed"
+      }
+    ]
+  },
+  "rows": [
+    {
+      "schema_version": "agent-ledger-row/v1",
+      "row_key": "claude:fixture-session-a:2026-07-03:claude-opus-4-8",
+      "source": "claude",
+      "session_key": "fixture-session-a",
+      "date": "2026-07-03",
+      "model": "claude-opus-4-8",
+      "transcript_hash": "sha256:fixture-content-a",
+      "transcript_key": "sha256:fixture-path-a",
+      "versions": {
+        "adapter": "claude-v1",
+        "classifier": "classifier-v1",
+        "allocator": "allocator-v1",
+        "pricer": "pricing-v1",
+        "rate_card": "v1-2026-06-27"
+      },
+      "turns": 2,
+      "total_cost_pico": "100",
+      "total_tokens": {
+        "input": 10,
+        "output": 4,
+        "cacheRead": 6,
+        "cacheCreation": 8,
+        "reasoning": 0
+      },
+      "allocations": [
+        {
+          "project_key": "p_alpha",
+          "target_kind": "repo",
+          "cost_pico": "70",
+          "tokens": {
+            "input": 7,
+            "output": 2,
+            "cacheRead": 3,
+            "cacheCreation": 4,
+            "reasoning": 0
+          },
+          "evidence": ["file-mutate"]
+        },
+        {
+          "project_key": "unattributed",
+          "target_kind": "unattributed",
+          "cost_pico": "30",
+          "tokens": {
+            "input": 3,
+            "output": 2,
+            "cacheRead": 3,
+            "cacheCreation": 4,
+            "reasoning": 0
+          },
+          "evidence": ["none"]
+        }
+      ]
+    },
+    {
+      "schema_version": "agent-ledger-row/v1",
+      "row_key": "claude:fixture-session-b:2026-07-03:claude-opus-4-8",
+      "source": "claude",
+      "session_key": "fixture-session-b",
+      "date": "2026-07-03",
+      "model": "claude-opus-4-8",
+      "transcript_hash": "sha256:fixture-content-b",
+      "transcript_key": "sha256:fixture-path-b",
+      "versions": {
+        "adapter": "claude-v1",
+        "classifier": "classifier-v1",
+        "allocator": "allocator-v1",
+        "pricer": "pricing-v1",
+        "rate_card": "v1-2026-06-27"
+      },
+      "turns": 1,
+      "total_cost_pico": "5",
+      "total_tokens": {
+        "input": 1,
+        "output": 2,
+        "cacheRead": 3,
+        "cacheCreation": 4,
+        "reasoning": 0
+      },
+      "allocations": [
+        {
+          "project_key": "p_alpha",
+          "target_kind": "repo",
+          "cost_pico": "5",
+          "tokens": {
+            "input": 1,
+            "output": 2,
+            "cacheRead": 3,
+            "cacheCreation": 4,
+            "reasoning": 0
+          },
+          "evidence": ["cwd"]
+        }
+      ]
+    },
+    {
+      "schema_version": "agent-ledger-row/v1",
+      "row_key": "claude:fixture-session-c:2026-07-04:claude-opus-4-8",
+      "source": "claude",
+      "session_key": "fixture-session-c",
+      "date": "2026-07-04",
+      "model": "claude-opus-4-8",
+      "transcript_hash": "sha256:fixture-content-c",
+      "transcript_key": "sha256:fixture-path-c",
+      "versions": {
+        "adapter": "claude-v1",
+        "classifier": "classifier-v1",
+        "allocator": "allocator-v1",
+        "pricer": "pricing-v1",
+        "rate_card": "v1-2026-06-27"
+      },
+      "turns": 1,
+      "total_cost_pico": "11",
+      "total_tokens": {
+        "input": 11,
+        "output": 2,
+        "cacheRead": 3,
+        "cacheCreation": 4,
+        "reasoning": 0
+      },
+      "allocations": [
+        {
+          "project_key": "p_observatory",
+          "target_kind": "direct",
+          "cost_pico": "11",
+          "tokens": {
+            "input": 11,
+            "output": 2,
+            "cacheRead": 3,
+            "cacheCreation": 4,
+            "reasoning": 0
+          },
+          "evidence": ["file-mutate"]
+        }
+      ]
+    }
+  ],
+  "expectedProjection": {
+    "asOf": "2026-07-04",
+    "projects": {
+      "__unattributed__": {
+        "kind": "unattributed",
+        "label": "Unattributed"
+      },
+      "p_alpha": {
+        "kind": "repo",
+        "label": "alpha"
+      },
+      "p_observatory": {
+        "kind": "repo",
+        "label": "agent-observatory"
+      }
+    },
+    "records": [
+      {
+        "source": "claude",
+        "date": "2026-07-03",
+        "project": "__unattributed__",
+        "model": "claude-opus-4-8",
+        "inputTokens": 3,
+        "outputTokens": 2,
+        "cacheCreationTokens": 4,
+        "cacheReadTokens": 3,
+        "reasoningTokens": 0,
+        "costPico": "30"
+      },
+      {
+        "source": "claude",
+        "date": "2026-07-03",
+        "project": "p_alpha",
+        "model": "claude-opus-4-8",
+        "inputTokens": 8,
+        "outputTokens": 4,
+        "cacheCreationTokens": 8,
+        "cacheReadTokens": 6,
+        "reasoningTokens": 0,
+        "costPico": "75"
+      },
+      {
+        "source": "claude",
+        "date": "2026-07-04",
+        "project": "p_observatory",
+        "model": "claude-opus-4-8",
+        "inputTokens": 11,
+        "outputTokens": 2,
+        "cacheCreationTokens": 4,
+        "cacheReadTokens": 3,
+        "reasoningTokens": 0,
+        "costPico": "11"
+      }
+    ]
+  },
+  "expectedCostPico": "116"
+}

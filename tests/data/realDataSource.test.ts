@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { selectDataSource } from '@/data/realDataSource';
-import { fixturesDataSource, baseRateCard } from '@/data/FixturesDataSource';
-import { UNATTRIBUTED, RESERVED_PROJECTS } from '@/domain/projects';
-import type { Snapshot } from '@/domain/types';
+import { describe, it, expect } from 'vitest'
+import { selectDataSource } from '@/data/realDataSource'
+import { fixturesDataSource, baseRateCard } from '@/data/FixturesDataSource'
+import { UNATTRIBUTED, RESERVED_PROJECTS } from '@/domain/projects'
+import type { Snapshot } from '@/domain/types'
 
 const fakeReal: Snapshot = {
   asOf: '2026-06-29',
@@ -20,26 +20,54 @@ const fakeReal: Snapshot = {
     },
   ],
   projects: { [UNATTRIBUTED]: RESERVED_PROJECTS[UNATTRIBUTED]! },
-};
+}
 
 describe('selectDataSource', () => {
   it('serves the ingested real snapshot when one is present', () => {
-    expect(selectDataSource(fakeReal).getSnapshot()).toBe(fakeReal);
-  });
+    expect(selectDataSource(fakeReal).getSnapshot()).toBe(fakeReal)
+  })
+
+  it('serves a ledger-projected snapshot with exact allocated cost overrides', () => {
+    const ledgerSnapshot: Snapshot = {
+      ...fakeReal,
+      records: [{ ...fakeReal.records[0]!, costPico: '123456' }],
+    }
+    expect(selectDataSource(ledgerSnapshot).getSnapshot()).toBe(ledgerSnapshot)
+  })
+
+  it('falls back to fixtures when a ledger-projected cost override is malformed', () => {
+    const ledgerSnapshot = {
+      ...fakeReal,
+      records: [{ ...fakeReal.records[0]!, costPico: '12.3' }],
+    }
+    expect(selectDataSource(ledgerSnapshot).getSnapshot()).toEqual(
+      fixturesDataSource.getSnapshot(),
+    )
+  })
 
   it('prices the real snapshot with the base rate card', () => {
-    expect(selectDataSource(fakeReal).getRateCard()).toEqual(baseRateCard());
-  });
+    expect(selectDataSource(fakeReal).getRateCard()).toEqual(baseRateCard())
+  })
 
   it('falls back to the committed synthetic fixtures when no real snapshot exists', () => {
-    expect(selectDataSource(undefined).getSnapshot()).toEqual(fixturesDataSource.getSnapshot());
-  });
+    expect(selectDataSource(undefined).getSnapshot()).toEqual(
+      fixturesDataSource.getSnapshot(),
+    )
+  })
 
   it('falls back to fixtures for a malformed artifact rather than shipping bad data', () => {
-    for (const bad of [null, {}, { asOf: '2026-06-29' }, { records: [] }, 'nope']) {
-      expect(selectDataSource(bad).getSnapshot()).toEqual(fixturesDataSource.getSnapshot());
+    for (const bad of [
+      null,
+      {},
+      { asOf: '2026-06-29' },
+      { records: [] },
+      'nope',
+    ]) {
+      expect(selectDataSource(bad).getSnapshot()).toEqual(
+        fixturesDataSource.getSnapshot(),
+      )
     }
-  });
+  })
 
   it('falls back to fixtures for a STALE v1-schema snapshot (no projects registry / records lacking project)', () => {
     const recNoProject = {
@@ -51,15 +79,22 @@ describe('selectDataSource', () => {
       cacheCreationTokens: 0,
       cacheReadTokens: 0,
       reasoningTokens: 0,
-    };
+    }
     // v1 shape: asOf + records but NO projects registry.
-    expect(selectDataSource({ asOf: '2026-06-29', records: [recNoProject] }).getSnapshot()).toEqual(
-      fixturesDataSource.getSnapshot(),
-    );
+    expect(
+      selectDataSource({
+        asOf: '2026-06-29',
+        records: [recNoProject],
+      }).getSnapshot(),
+    ).toEqual(fixturesDataSource.getSnapshot())
     // has a projects registry but a record lacks the `project` key — still rejected (would render undefined).
     expect(
-      selectDataSource({ asOf: '2026-06-29', records: [recNoProject], projects: {} }).getSnapshot(),
-    ).toEqual(fixturesDataSource.getSnapshot());
+      selectDataSource({
+        asOf: '2026-06-29',
+        records: [recNoProject],
+        projects: {},
+      }).getSnapshot(),
+    ).toEqual(fixturesDataSource.getSnapshot())
     // a record whose project is NOT registered (empty registry) is rejected too — it would render undefined.
     expect(
       selectDataSource({
@@ -67,6 +102,6 @@ describe('selectDataSource', () => {
         records: [{ ...recNoProject, project: '/repo/ghost' }],
         projects: {},
       }).getSnapshot(),
-    ).toEqual(fixturesDataSource.getSnapshot());
-  });
-});
+    ).toEqual(fixturesDataSource.getSnapshot())
+  })
+})

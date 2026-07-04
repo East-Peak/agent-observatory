@@ -1,6 +1,7 @@
-import type { Snapshot } from '@/domain/types';
-import type { DataSource } from './DataSource';
-import { createFixturesDataSource, baseRateCard } from './FixturesDataSource';
+import type { Snapshot } from '@/domain/types'
+import type { DataSource } from './DataSource'
+import { createFixturesDataSource, baseRateCard } from './FixturesDataSource'
+import { isCostPicoString } from '@/domain/costPico'
 
 /** Minimal shape guard for an externally-produced snapshot (the ingested JSON could be hand-edited,
  * stale, or a leftover v1 artifact). Ingest already validates before writing; this just keeps a
@@ -8,18 +9,24 @@ import { createFixturesDataSource, baseRateCard } from './FixturesDataSource';
  * project schema (a `projects` registry + a non-empty `project` on every record), so a stale v1-format
  * snapshot is rejected rather than rendered with undefined attribution. */
 function isSnapshotShape(value: unknown): value is Snapshot {
-  if (typeof value !== 'object' || value === null) return false;
-  const v = value as Record<string, unknown>;
-  if (typeof v.asOf !== 'string' || !Array.isArray(v.records)) return false;
-  if (typeof v.projects !== 'object' || v.projects === null) return false;
-  const projects = v.projects as Record<string, unknown>;
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  if (typeof v.asOf !== 'string' || !Array.isArray(v.records)) return false
+  if (typeof v.projects !== 'object' || v.projects === null) return false
+  const projects = v.projects as Record<string, unknown>
   // Every record's project must be a non-empty key that EXISTS in the registry — a registry the
   // renderer reads `projects[key].kind/label` from. A record pointing at an unregistered project would
   // render undefined, so reject the whole artifact and fall back.
   return v.records.every((r) => {
-    const project = (r as { project?: unknown }).project;
-    return typeof project === 'string' && project.length > 0 && project in projects;
-  });
+    const project = (r as { project?: unknown }).project
+    const costPico = (r as { costPico?: unknown }).costPico
+    return (
+      typeof project === 'string' &&
+      project.length > 0 &&
+      project in projects &&
+      (costPico === undefined || isCostPicoString(costPico))
+    )
+  })
 }
 
 /**
@@ -31,9 +38,9 @@ function isSnapshotShape(value: unknown): value is Snapshot {
  * keeping that import on the single seam `import-boundary` allows (`FixturesDataSource.ts`).
  */
 export function selectDataSource(realSnapshot: unknown): DataSource {
-  if (!isSnapshotShape(realSnapshot)) return createFixturesDataSource();
+  if (!isSnapshotShape(realSnapshot)) return createFixturesDataSource()
   return {
     getSnapshot: () => realSnapshot,
     getRateCard: () => baseRateCard(),
-  };
+  }
 }

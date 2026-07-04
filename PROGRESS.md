@@ -118,20 +118,21 @@ panel goes live only when its `*.demo.test.tsx` (calling `describeLivePanel`) + 
 
 - [x] DataSource seam (FixturesDataSource default + rate-card injection seam) + UTC clock provider
 - [x] Shared scope bar (time-range + source) persisted across navigation (`describeScopePersistence`)
-- [x] `scripts/ingest.mjs` (+ `--from-fixture` + fake-ccusage binary) — `ingest-fixture` / `ingest-argv`
-      green; the v2 project ingest (`--instances` decoder + resolver) is built + frozen (`project-ingest-contract`)
+- [x] `scripts/ingest.mjs` (+ `--from-fixture`) — default Claude attribution reads the local durable
+      ledger; Codex/OpenClaw stay tool-level daily rows; `ledger-projection-contract`, `project-ingest-contract`,
+      `ingest-fixture`, and `ingest-argv` are green
 - [x] Per-project engine (`projectIdentity` / `buckets` / `intensity` / `aggregateByProjectPeriod` /
-      `aggregateByProject`) + snapshot `projects` registry — all built + frozen; panels render these, they
-      do not re-implement them
+      `aggregateByProject`) + ledger projection + snapshot `projects` registry — all built + frozen; panels
+      render these, they do not re-implement them
 
 ## Blocked / Skipped
 
 No item is blocked or skipped. (Required panels/steps may NEVER appear here — `progress-consistency`
 FAILs if any required panel name does.)
 
-| item | reason | since |
-|------|--------|-------|
-| _(none)_ | | |
+| item     | reason | since |
+| -------- | ------ | ----- |
+| _(none)_ |        |       |
 
 ## Operator assumptions (pre-launch)
 

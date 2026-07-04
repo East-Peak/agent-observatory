@@ -39,15 +39,15 @@ flowchart LR
 
 ## Layers
 
-| Layer | Responsibility | Mutable? |
-| --- | --- | --- |
-| `domain/` | The engine: ccusage decoders + project resolver, exact BigInt pico-USD pricing (point-in-time rate bands), aggregations, buckets/intensity, shared scoping | Mostly **frozen** (verifier-pinned) |
-| `data/` | The DataSource seam — real ingested snapshot with fixture fallback; the rate-card injection point the verifier drives | realDataSource mutable |
-| `panels/` | The six panels, each a thin view + a `select*` view-model over the engine | Mutable |
-| `app/` | The one shared `(range, source)` scope + ScopeBar; selections persist across navigation | Mutable |
-| `components/ui` | shadcn-style primitives (Card, StatTile, PanelShell, `cn`) on the validated dark theme | Mutable |
-| `ui/` | Display-boundary formatters — money stays exact BigInt until the final render step | Mutable |
-| `shell` | `main.tsx` entry (build-time snapshot load) + `App.tsx` routes/nav | Mutable |
+| Layer           | Responsibility                                                                                                                                                  | Mutable?                            |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `domain/`       | The engine: ledger projection, ccusage tool decoders, exact BigInt pico-USD pricing (point-in-time rate bands), aggregations, buckets/intensity, shared scoping | Mostly **frozen** (verifier-pinned) |
+| `data/`         | The DataSource seam — local ledger-projected snapshot with fixture fallback; the rate-card injection point the verifier drives                                  | realDataSource mutable              |
+| `panels/`       | The six panels, each a thin view + a `select*` view-model over the engine                                                                                       | Mutable                             |
+| `app/`          | The one shared `(range, source)` scope + ScopeBar; selections persist across navigation                                                                         | Mutable                             |
+| `components/ui` | shadcn-style primitives (Card, StatTile, PanelShell, `cn`) on the validated dark theme                                                                          | Mutable                             |
+| `ui/`           | Display-boundary formatters — money stays exact BigInt until the final render step                                                                              | Mutable                             |
+| `shell`         | `main.tsx` entry (build-time snapshot load) + `App.tsx` routes/nav                                                                                              | Mutable                             |
 
 Two invariants worth knowing when reading the graph:
 

@@ -1,13 +1,14 @@
-import type { ProjectMeta, Snapshot, Source, UsageRecord } from './types';
+import type { ProjectMeta, Snapshot, Source, UsageRecord } from './types'
 // Explicit .ts extension so this VALUE import resolves under Node-native type-stripping (the ingest
 // imports buildSnapshot.ts directly via Node, which requires the extension on a runtime relative import).
-import { deriveRegistry, RESERVED_PROJECTS } from './projects.ts';
+import { deriveRegistry, RESERVED_PROJECTS } from './projects.ts'
+import { isCostPicoString } from './costPico.ts'
 
 /** Raised when records can't be assembled into a well-formed snapshot. */
 export class SnapshotBuildError extends Error {
   constructor(message: string) {
-    super(message);
-    this.name = 'SnapshotBuildError';
+    super(message)
+    this.name = 'SnapshotBuildError'
   }
 }
 
@@ -15,7 +16,7 @@ export class SnapshotBuildError extends Error {
  * The marker the openclaw decoder emits for a day that spans multiple models — ccusage's
  * openclaw daily output carries no per-model token split, so such days can't be attributed.
  */
-export const OPENCLAW_ALL_MARKER = '(all)';
+export const OPENCLAW_ALL_MARKER = '(all)'
 
 /**
  * The model openclaw `(all)` multi-model days are remapped to. It is a DISTINCT, honestly-labeled
@@ -25,7 +26,7 @@ export const OPENCLAW_ALL_MARKER = '(all)';
  * with the "subscription marginal cost ≠ billed" disclaimer. The label must exist in the rate
  * card (it does), so these days stay priceable.
  */
-export const OPENCLAW_DEFAULT_MODEL = 'openclaw-mixed';
+export const OPENCLAW_DEFAULT_MODEL = 'openclaw-mixed'
 
 /**
  * Remap openclaw `(all)` multi-model-day records onto the openclaw default model so they're
@@ -37,21 +38,28 @@ export function remapOpenclawAll(
   defaultModel: string = OPENCLAW_DEFAULT_MODEL,
 ): UsageRecord[] {
   return records.map((r) =>
-    r.source === 'openclaw' && r.model === OPENCLAW_ALL_MARKER ? { ...r, model: defaultModel } : r,
-  );
+    r.source === 'openclaw' && r.model === OPENCLAW_ALL_MARKER
+      ? { ...r, model: defaultModel }
+      : r,
+  )
 }
 
 /** Stable source ordering for the deterministic record sort. */
-const SOURCE_ORDER: Record<Source, number> = { claude: 0, codex: 1, openclaw: 2 };
+const SOURCE_ORDER: Record<Source, number> = {
+  claude: 0,
+  codex: 1,
+  openclaw: 2,
+}
 
 /** Deterministic order: date, source, project, then model — byte-stable for a given input set
  * (project enters the key so multiple per-project records sharing date/source/model stay stable). */
 function compareRecords(a: UsageRecord, b: UsageRecord): number {
-  if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-  if (a.source !== b.source) return SOURCE_ORDER[a.source] - SOURCE_ORDER[b.source];
-  if (a.project !== b.project) return a.project < b.project ? -1 : 1;
-  if (a.model !== b.model) return a.model < b.model ? -1 : 1;
-  return 0;
+  if (a.date !== b.date) return a.date < b.date ? -1 : 1
+  if (a.source !== b.source)
+    return SOURCE_ORDER[a.source] - SOURCE_ORDER[b.source]
+  if (a.project !== b.project) return a.project < b.project ? -1 : 1
+  if (a.model !== b.model) return a.model < b.model ? -1 : 1
+  return 0
 }
 
 /**
@@ -62,34 +70,39 @@ function compareRecords(a: UsageRecord, b: UsageRecord): number {
  */
 export function assembleSnapshot(
   groups: readonly (readonly UsageRecord[])[],
-  opts: { readonly asOf?: string; readonly projects?: Readonly<Record<string, ProjectMeta>> } = {},
+  opts: {
+    readonly asOf?: string
+    readonly projects?: Readonly<Record<string, ProjectMeta>>
+  } = {},
 ): Snapshot {
-  const records = groups.flat().slice().sort(compareRecords);
+  const records = groups.flat().slice().sort(compareRecords)
   if (records.length === 0 && opts.asOf === undefined) {
-    throw new SnapshotBuildError('cannot assemble an empty snapshot without an explicit asOf');
+    throw new SnapshotBuildError(
+      'cannot assemble an empty snapshot without an explicit asOf',
+    )
   }
-  const asOf = opts.asOf ?? records[records.length - 1]!.date;
+  const asOf = opts.asOf ?? records[records.length - 1]!.date
   // When given, `opts.projects` is the COMPLETE registry (it replaces, not merges) — the ingest builds
   // it up front via `deriveRegistry(records, aliasOverrides)` and passes the whole thing. Absent it, we
   // derive a basename/sentinel registry from the record keys.
-  const projects = opts.projects ?? deriveRegistry(records);
-  return { asOf, records, projects };
+  const projects = opts.projects ?? deriveRegistry(records)
+  return { asOf, records, projects }
 }
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 const TOKEN_FIELDS = [
   'inputTokens',
   'outputTokens',
   'cacheCreationTokens',
   'cacheReadTokens',
   'reasoningTokens',
-] as const;
+] as const
 
 /**
- * Validate a snapshot is well-formed and fully priceable. `isPriceable(model, date)` is the
- * point-in-time predicate the renderer actually relies on — it must answer whether a rate *band*
- * covers that record's date, not merely whether the model key exists (a record dated before a
- * model's first band would pass a key check yet still throw in `selectBand` at render time).
+ * Validate a snapshot is well-formed. Token-native records must be fully priceable via
+ * `isPriceable(model, date)`, the point-in-time predicate the renderer actually relies on. Ledger
+ * records with a valid exact `costPico` override are already money-authoritative, so validation does
+ * not require the current dashboard rate card to contain their stamped source model.
  * Returns a list of human-readable problems — empty means valid. The caller decides how to react
  * (ingest fails loud), so fail-closed pricing never meets a surprise on screen.
  */
@@ -97,66 +110,91 @@ export function validateSnapshot(
   snap: Snapshot,
   isPriceable: (model: string, date: string) => boolean,
 ): string[] {
-  const problems: string[] = [];
-  if (!ISO_DATE.test(snap.asOf)) problems.push(`asOf "${snap.asOf}" is not a YYYY-MM-DD date`);
-  if (snap.records.length === 0) problems.push('snapshot has zero records');
+  const problems: string[] = []
+  if (!ISO_DATE.test(snap.asOf))
+    problems.push(`asOf "${snap.asOf}" is not a YYYY-MM-DD date`)
+  if (snap.records.length === 0) problems.push('snapshot has zero records')
 
-  const unpriceable = new Set<string>();
+  const unpriceable = new Set<string>()
   snap.records.forEach((r, i) => {
-    const where = `records[${i}] (${r.source}/${r.date}/${r.model})`;
-    if (!ISO_DATE.test(r.date)) problems.push(`${where}: date is not YYYY-MM-DD`);
-    else if (r.date > snap.asOf) problems.push(`${where}: date is after asOf ${snap.asOf}`);
+    const where = `records[${i}] (${r.source}/${r.date}/${r.model})`
+    if (!ISO_DATE.test(r.date))
+      problems.push(`${where}: date is not YYYY-MM-DD`)
+    else if (r.date > snap.asOf)
+      problems.push(`${where}: date is after asOf ${snap.asOf}`)
     for (const f of TOKEN_FIELDS) {
-      const v = r[f];
+      const v = r[f]
       if (!Number.isInteger(v) || v < 0) {
-        problems.push(`${where}: ${f} must be a non-negative integer (got ${JSON.stringify(v)})`);
+        problems.push(
+          `${where}: ${f} must be a non-negative integer (got ${JSON.stringify(v)})`,
+        )
       }
     }
-    if (!isPriceable(r.model, r.date)) unpriceable.add(`${r.model}@${r.date}`);
-  });
+    let hasValidCostOverride = false
+    if (r.costPico !== undefined) {
+      if (isCostPicoString(r.costPico)) {
+        hasValidCostOverride = true
+      } else {
+        problems.push(
+          `${where}: costPico must be a non-negative base-10 integer string`,
+        )
+      }
+    }
+    if (!hasValidCostOverride && !isPriceable(r.model, r.date))
+      unpriceable.add(`${r.model}@${r.date}`)
+  })
   if (unpriceable.size > 0) {
-    problems.push(`unpriceable model(s) — no rate band covers: ${[...unpriceable].sort().join(', ')}`);
+    problems.push(
+      `unpriceable model(s) — no rate band covers: ${[...unpriceable].sort().join(', ')}`,
+    )
   }
 
   // Canonical records are unique by full identity (date, source, project, model). The renderer's
   // per-record carriers (e.g. the activity feed's `<source>|<date>|<model>|<project>` key) and the
   // oracle's counted-multiset comparison both assume this — a duplicate would let two cells share a
   // carrier key, where a wrong value on the second could hide. Fail closed at the data boundary.
-  const seenIdentity = new Set<string>();
-  const dupIdentity = new Set<string>();
+  const seenIdentity = new Set<string>()
+  const dupIdentity = new Set<string>()
   for (const r of snap.records) {
-    const id = `${r.date}|${r.source}|${r.project}|${r.model}`;
-    if (seenIdentity.has(id)) dupIdentity.add(id);
-    else seenIdentity.add(id);
+    const id = `${r.date}|${r.source}|${r.project}|${r.model}`
+    if (seenIdentity.has(id)) dupIdentity.add(id)
+    else seenIdentity.add(id)
   }
   if (dupIdentity.size > 0) {
-    problems.push(`duplicate record identity (date|source|project|model): ${[...dupIdentity].sort().join(', ')}`);
+    problems.push(
+      `duplicate record identity (date|source|project|model): ${[...dupIdentity].sort().join(', ')}`,
+    )
   }
 
   // Registry consistency: every record's project key must resolve, and reserved sentinels must keep
   // their fixed kind (so a panel can trust `projects[key].kind` to place repo/tool/unattributed rows).
-  const missing = new Set<string>();
-  for (const r of snap.records) if (!(r.project in snap.projects)) missing.add(r.project);
+  const missing = new Set<string>()
+  for (const r of snap.records)
+    if (!(r.project in snap.projects)) missing.add(r.project)
   if (missing.size > 0) {
-    problems.push(`record project key(s) absent from the registry: ${[...missing].sort().join(', ')}`);
+    problems.push(
+      `record project key(s) absent from the registry: ${[...missing].sort().join(', ')}`,
+    )
   }
   for (const [key, meta] of Object.entries(RESERVED_PROJECTS)) {
-    const got = snap.projects[key];
+    const got = snap.projects[key]
     if (got && got.kind !== meta.kind) {
-      problems.push(`reserved sentinel ${key} registered with kind "${got.kind}" (must be "${meta.kind}")`);
+      problems.push(
+        `reserved sentinel ${key} registered with kind "${got.kind}" (must be "${meta.kind}")`,
+      )
     }
   }
-  return problems;
+  return problems
 }
 
 /** ccusage's per-source `totals` envelope field — token counts only (its float cost is ignored). */
 export interface CcusageTotals {
-  readonly inputTokens?: number;
-  readonly outputTokens?: number;
-  readonly cacheCreationTokens?: number;
-  readonly cacheReadTokens?: number;
+  readonly inputTokens?: number
+  readonly outputTokens?: number
+  readonly cacheCreationTokens?: number
+  readonly cacheReadTokens?: number
   /** Codex-only; maps onto our canonical `reasoningTokens`. */
-  readonly reasoningOutputTokens?: number;
+  readonly reasoningOutputTokens?: number
 }
 
 /**
@@ -171,23 +209,34 @@ export function reconcileTotals(
   records: readonly UsageRecord[],
   totals: CcusageTotals | undefined,
 ): string[] {
-  if (!totals) return [];
-  const sum = (pick: (r: UsageRecord) => number) => records.reduce((acc, r) => acc + pick(r), 0);
+  if (!totals) return []
+  const sum = (pick: (r: UsageRecord) => number) =>
+    records.reduce((acc, r) => acc + pick(r), 0)
   const pairs: ReadonlyArray<readonly [string, number, number | undefined]> = [
     ['inputTokens', sum((r) => r.inputTokens), totals.inputTokens],
     ['outputTokens', sum((r) => r.outputTokens), totals.outputTokens],
-    ['cacheCreationTokens', sum((r) => r.cacheCreationTokens), totals.cacheCreationTokens],
+    [
+      'cacheCreationTokens',
+      sum((r) => r.cacheCreationTokens),
+      totals.cacheCreationTokens,
+    ],
     ['cacheReadTokens', sum((r) => r.cacheReadTokens), totals.cacheReadTokens],
-    ['reasoningTokens', sum((r) => r.reasoningTokens), totals.reasoningOutputTokens],
-  ];
-  const problems: string[] = [];
+    [
+      'reasoningTokens',
+      sum((r) => r.reasoningTokens),
+      totals.reasoningOutputTokens,
+    ],
+  ]
+  const problems: string[] = []
   for (const [field, decoded, reported] of pairs) {
-    const expected = reported ?? 0;
+    const expected = reported ?? 0
     if (decoded !== expected) {
-      problems.push(`${source}: ${field} decoded ${decoded} ≠ ccusage total ${expected} (envelope drift?)`);
+      problems.push(
+        `${source}: ${field} decoded ${decoded} ≠ ccusage total ${expected} (envelope drift?)`,
+      )
     }
   }
-  return problems;
+  return problems
 }
 
 /**
@@ -202,44 +251,63 @@ export function reconcileInstancesDaily(
   instances: readonly UsageRecord[],
   daily: readonly UsageRecord[],
 ): string[] {
-  interface Sums { input: number; output: number; cacheCreation: number; cacheRead: number }
-  const sumByDayModel = (records: readonly UsageRecord[]): Map<string, Sums> => {
-    const m = new Map<string, Sums>();
+  interface Sums {
+    input: number
+    output: number
+    cacheCreation: number
+    cacheRead: number
+  }
+  const sumByDayModel = (
+    records: readonly UsageRecord[],
+  ): Map<string, Sums> => {
+    const m = new Map<string, Sums>()
     for (const r of records) {
-      const key = `${r.date}\u0000${r.model}`;
-      const cur = m.get(key) ?? { input: 0, output: 0, cacheCreation: 0, cacheRead: 0 };
-      cur.input += r.inputTokens;
-      cur.output += r.outputTokens;
-      cur.cacheCreation += r.cacheCreationTokens;
-      cur.cacheRead += r.cacheReadTokens;
-      m.set(key, cur);
+      const key = `${r.date}\u0000${r.model}`
+      const cur = m.get(key) ?? {
+        input: 0,
+        output: 0,
+        cacheCreation: 0,
+        cacheRead: 0,
+      }
+      cur.input += r.inputTokens
+      cur.output += r.outputTokens
+      cur.cacheCreation += r.cacheCreationTokens
+      cur.cacheRead += r.cacheReadTokens
+      m.set(key, cur)
     }
-    return m;
-  };
-  const inst = sumByDayModel(instances);
-  const day = sumByDayModel(daily);
-  const problems: string[] = [];
+    return m
+  }
+  const inst = sumByDayModel(instances)
+  const day = sumByDayModel(daily)
+  const problems: string[] = []
   for (const key of [...new Set([...inst.keys(), ...day.keys()])].sort()) {
-    const [date, model] = key.split('\u0000');
-    const a = inst.get(key);
-    const b = day.get(key);
+    const [date, model] = key.split('\u0000')
+    const a = inst.get(key)
+    const b = day.get(key)
     if (!a) {
-      problems.push(`${date}/${model}: present in daily but absent from --instances`);
-      continue;
+      problems.push(
+        `${date}/${model}: present in daily but absent from --instances`,
+      )
+      continue
     }
     if (!b) {
-      problems.push(`${date}/${model}: present in --instances but absent from daily`);
-      continue;
+      problems.push(
+        `${date}/${model}: present in --instances but absent from daily`,
+      )
+      continue
     }
     const fields: ReadonlyArray<readonly [string, number, number]> = [
       ['inputTokens', a.input, b.input],
       ['outputTokens', a.output, b.output],
       ['cacheCreationTokens', a.cacheCreation, b.cacheCreation],
       ['cacheReadTokens', a.cacheRead, b.cacheRead],
-    ];
+    ]
     for (const [field, av, bv] of fields) {
-      if (av !== bv) problems.push(`${date}/${model}: ${field} --instances ${av} != daily ${bv}`);
+      if (av !== bv)
+        problems.push(
+          `${date}/${model}: ${field} --instances ${av} != daily ${bv}`,
+        )
     }
   }
-  return problems;
+  return problems
 }

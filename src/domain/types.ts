@@ -1,14 +1,14 @@
 /** The three usage sources the Observatory unifies. */
-export type Source = 'claude' | 'codex' | 'openclaw';
+export type Source = 'claude' | 'codex' | 'openclaw'
 
 /** What a project key denotes: a real git repo, the catch-all bucket, or a whole tool. */
-export type ProjectKind = 'repo' | 'unattributed' | 'tool';
+export type ProjectKind = 'repo' | 'unattributed' | 'tool'
 
 /** The {@link Snapshot} registry value for a project key — its display label + kind. Keys are
  * git-toplevel paths (repos) or reserved sentinels (`__unattributed__`/`__codex__`/`__openclaw__`). */
 export interface ProjectMeta {
-  readonly kind: ProjectKind;
-  readonly label: string;
+  readonly kind: ProjectKind
+  readonly label: string
 }
 
 /**
@@ -20,18 +20,23 @@ export interface ProjectMeta {
  * `reasoningTokens` is Codex-only and 0 for the other sources.
  */
 export interface UsageRecord {
-  readonly source: Source;
+  readonly source: Source
   /** ISO calendar day, YYYY-MM-DD. */
-  readonly date: string;
+  readonly date: string
   /** Project key — a git-toplevel path (repo) or a reserved sentinel; resolves in `Snapshot.projects`.
    * Never empty; unresolved Claude work is the `__unattributed__` sentinel. */
-  readonly project: string;
-  readonly model: string;
-  readonly inputTokens: number;
-  readonly outputTokens: number;
-  readonly cacheCreationTokens: number;
-  readonly cacheReadTokens: number;
-  readonly reasoningTokens: number;
+  readonly project: string
+  readonly model: string
+  readonly inputTokens: number
+  readonly outputTokens: number
+  readonly cacheCreationTokens: number
+  readonly cacheReadTokens: number
+  readonly reasoningTokens: number
+  /**
+   * Exact normalized cost in pico-USD for ledger-projected allocation records. Absent for
+   * token-native ccusage/fixture records, where cost is still derived from the rate card.
+   */
+  readonly costPico?: string
 }
 
 /**
@@ -41,8 +46,8 @@ export interface UsageRecord {
  */
 export interface Snapshot {
   /** YYYY-MM-DD reference date for relative ranges. */
-  readonly asOf: string;
-  readonly records: readonly UsageRecord[];
+  readonly asOf: string
+  readonly records: readonly UsageRecord[]
   /** Registry mapping every `record.project` key → its kind + display label. */
-  readonly projects: Readonly<Record<string, ProjectMeta>>;
+  readonly projects: Readonly<Record<string, ProjectMeta>>
 }

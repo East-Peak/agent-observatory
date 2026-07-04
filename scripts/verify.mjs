@@ -30,47 +30,64 @@
 //
 // Exit 0 iff RESULT: PASS.
 
-import { execSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
-import { resolve, join } from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { execSync } from 'node:child_process'
+import {
+  mkdirSync,
+  writeFileSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from 'node:fs'
+import { resolve, join } from 'node:path'
+import { randomBytes } from 'node:crypto'
 
-const ROOT = resolve(import.meta.dirname, '..');
-const LOG_DIR = join(ROOT, '.verify-logs');
+const ROOT = resolve(import.meta.dirname, '..')
+const LOG_DIR = join(ROOT, '.verify-logs')
 // v2 baseline: the per-project re-baseline. The v1 tag stays as v1's record; this tag is cut in
 // Phase 0-F (so baseline-tag / verifier-integrity are expected red until then).
-const BASELINE_TAG = 'observatory-v2-verifier-baseline';
+const BASELINE_TAG = 'observatory-v2-verifier-baseline'
 
-const argv = process.argv.slice(2);
-const COMPLETE = argv.includes('--complete');
-const DEMO = argv.includes('--demo-ready') || COMPLETE;
-const MODE = COMPLETE ? 'COMPLETE' : DEMO ? 'DEMO-READY' : 'STEP';
-const shaIdx = argv.indexOf('--expected-baseline-sha');
+const argv = process.argv.slice(2)
+const COMPLETE = argv.includes('--complete')
+const DEMO = argv.includes('--demo-ready') || COMPLETE
+const MODE = COMPLETE ? 'COMPLETE' : DEMO ? 'DEMO-READY' : 'STEP'
+const shaIdx = argv.indexOf('--expected-baseline-sha')
 const EXPECTED_SHA =
-  shaIdx >= 0 && /^[0-9a-f]{40}$/.test(argv[shaIdx + 1] ?? '') ? argv[shaIdx + 1] : null;
+  shaIdx >= 0 && /^[0-9a-f]{40}$/.test(argv[shaIdx + 1] ?? '')
+    ? argv[shaIdx + 1]
+    : null
 
-mkdirSync(LOG_DIR, { recursive: true });
+mkdirSync(LOG_DIR, { recursive: true })
 
 // ---- check registry (three states: pass / fail / pending) -------------------------------
 
-const checks = [];
+const checks = []
 function record(name, ok, detail = '') {
-  checks.push({ name, status: ok ? 'pass' : 'fail', detail });
+  checks.push({ name, status: ok ? 'pass' : 'fail', detail })
 }
 function recordPending(name, detail) {
-  checks.push({ name, status: 'pending', detail });
+  checks.push({ name, status: 'pending', detail })
 }
 
 // Run a shell command; PASS iff exit 0 within timeout. Full output -> log file.
 function runCheck(name, cmd, timeout = 420000) {
   try {
-    const out = execSync(cmd, { cwd: ROOT, stdio: 'pipe', encoding: 'utf8', timeout });
-    writeFileSync(join(LOG_DIR, `${name}.log`), out);
-    record(name, true);
+    const out = execSync(cmd, {
+      cwd: ROOT,
+      stdio: 'pipe',
+      encoding: 'utf8',
+      timeout,
+    })
+    writeFileSync(join(LOG_DIR, `${name}.log`), out)
+    record(name, true)
   } catch (e) {
-    writeFileSync(join(LOG_DIR, `${name}.log`), `${e.stdout ?? ''}\n${e.stderr ?? ''}`);
-    const why = e.signal === 'SIGTERM' ? 'TIMEOUT' : 'exit != 0';
-    record(name, false, `${why} — see .verify-logs/${name}.log`);
+    writeFileSync(
+      join(LOG_DIR, `${name}.log`),
+      `${e.stdout ?? ''}\n${e.stderr ?? ''}`,
+    )
+    const why = e.signal === 'SIGTERM' ? 'TIMEOUT' : 'exit != 0'
+    record(name, false, `${why} — see .verify-logs/${name}.log`)
   }
 }
 
@@ -78,57 +95,60 @@ function runCheck(name, cmd, timeout = 420000) {
 
 function readJson(p) {
   try {
-    return JSON.parse(readFileSync(p, 'utf8'));
+    return JSON.parse(readFileSync(p, 'utf8'))
   } catch {
-    return null;
+    return null
   }
 }
 
 // Strip block + line comments so commented-out code can't satisfy a content grep.
 function stripComments(s) {
-  return s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  return s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
 }
 
 // Recursively collect files (relative paths) under `rel` whose name matches `extRe`.
 function filesUnder(rel, extRe) {
-  const abs = join(ROOT, rel);
-  const acc = [];
-  if (!existsSync(abs)) return acc;
+  const abs = join(ROOT, rel)
+  const acc = []
+  if (!existsSync(abs)) return acc
   for (const e of readdirSync(abs, { withFileTypes: true })) {
-    const childRel = `${rel}/${e.name}`;
-    if (e.isDirectory()) acc.push(...filesUnder(childRel, extRe));
-    else if (extRe.test(e.name)) acc.push(childRel);
+    const childRel = `${rel}/${e.name}`
+    if (e.isDirectory()) acc.push(...filesUnder(childRel, extRe))
+    else if (extRe.test(e.name)) acc.push(childRel)
   }
-  return acc;
+  return acc
 }
-const sourceFiles = () => filesUnder('src', /\.(ts|tsx)$/);
-const scriptFiles = () => filesUnder('scripts', /\.(mjs|cjs|js|ts)$/);
-const jsonFilesUnder = (rel) => filesUnder(rel, /\.json$/);
+const sourceFiles = () => filesUnder('src', /\.(ts|tsx)$/)
+const scriptFiles = () => filesUnder('scripts', /\.(mjs|cjs|js|ts)$/)
+const jsonFilesUnder = (rel) => filesUnder(rel, /\.json$/)
 
 function q(p) {
-  return JSON.stringify(p);
+  return JSON.stringify(p)
 }
 
 // Write a FROZEN emitter snippet to a temp .mts and run it via tsx; return parsed stdout
 // JSON. The snippet imports the REAL app modules (absolute paths), so a broken app FAILs the
 // gate, while the snippet text — and the assertions that consume it — stay frozen here.
 function runEmitter(name, tsSource) {
-  const file = join(LOG_DIR, `${name}.emitter.mts`);
-  writeFileSync(file, tsSource);
+  const file = join(LOG_DIR, `${name}.emitter.mts`)
+  writeFileSync(file, tsSource)
   try {
     const out = execSync(`npx tsx ${q(file)}`, {
       cwd: ROOT,
       encoding: 'utf8',
       timeout: 120000,
       stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return { ok: true, data: JSON.parse(out) };
+    })
+    return { ok: true, data: JSON.parse(out) }
   } catch (e) {
-    writeFileSync(join(LOG_DIR, `${name}.log`), `${e.stdout ?? ''}\n${e.stderr ?? ''}\n${e.message ?? ''}`);
-    return { ok: false };
+    writeFileSync(
+      join(LOG_DIR, `${name}.log`),
+      `${e.stdout ?? ''}\n${e.stderr ?? ''}\n${e.message ?? ''}`,
+    )
+    return { ok: false }
   } finally {
     try {
-      rmSync(file, { force: true });
+      rmSync(file, { force: true })
     } catch {
       /* best effort */
     }
@@ -138,14 +158,26 @@ function runEmitter(name, tsSource) {
 function git(cmd, timeout = 30000) {
   // stderr piped (captured on throw) rather than inherited, so expected pre-launch git
   // failures (missing tag / no upstream) don't leak noise into the transcript.
-  return execSync(`git ${cmd}`, { cwd: ROOT, encoding: 'utf8', timeout, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  return execSync(`git ${cmd}`, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim()
 }
 function gitCheck(name, fn) {
   try {
-    record(name, fn() === true);
+    record(name, fn() === true)
   } catch (e) {
     // Collapse whitespace so a multi-line git error stays on the gate's single line.
-    record(name, false, String(e.message ?? e).replace(/\s+/g, ' ').trim().slice(0, 70));
+    record(
+      name,
+      false,
+      String(e.message ?? e)
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 70),
+    )
   }
 }
 
@@ -156,21 +188,28 @@ function gitCheck(name, fn) {
 // gitignored raw-* captures are excluded (they may legitimately contain project names);
 // scripts/ is excluded (this file holds the denylist itself and would self-match).
 function identityCheck() {
-  const pattern = 'resolve[ ._-]?ai|resolveai|spot ai';
-  const targets = ['src', 'config', 'data', 'PROGRESS.md', 'README.md'].filter((d) =>
-    existsSync(join(ROOT, d)),
-  );
+  const pattern = 'resolve[ ._-]?ai|resolveai|spot ai'
+  const targets = ['src', 'config', 'data', 'PROGRESS.md', 'README.md'].filter(
+    (d) => existsSync(join(ROOT, d)),
+  )
   try {
-    const out = execSync(`grep -rinE --exclude='raw-*' "${pattern}" ${targets.join(' ')}`, {
-      cwd: ROOT,
-      encoding: 'utf8',
-      timeout: 60000,
-    });
-    writeFileSync(join(LOG_DIR, 'identity.log'), out);
-    record('identity', false, `${out.trim().split('\n').length} forbidden-string hit(s)`);
+    const out = execSync(
+      `grep -rinE --exclude='raw-*' "${pattern}" ${targets.join(' ')}`,
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+        timeout: 60000,
+      },
+    )
+    writeFileSync(join(LOG_DIR, 'identity.log'), out)
+    record(
+      'identity',
+      false,
+      `${out.trim().split('\n').length} forbidden-string hit(s)`,
+    )
   } catch (e) {
-    if (e.status === 1) record('identity', true);
-    else record('identity', false, `grep error (status ${e.status ?? '?'})`);
+    if (e.status === 1) record('identity', true)
+    else record('identity', false, `grep error (status ${e.status ?? '?'})`)
   }
 }
 
@@ -184,48 +223,50 @@ function identityCheck() {
 // npm reports as missing/invalid/extraneous. OPERATOR ASSUMPTION (documented in PROGRESS.md): deps
 // are installed from the frozen lockfile (`npm ci`); this gate verifies that, rather than trusting
 // whatever happens to sit in node_modules.
-const TOOLCHAIN_PINS = ['vitest', 'tsx', 'vite'];
+const TOOLCHAIN_PINS = ['vitest', 'tsx', 'vite']
 function lockedVersion(lock, name) {
-  return lock?.packages?.[`node_modules/${name}`]?.version ?? null;
+  return lock?.packages?.[`node_modules/${name}`]?.version ?? null
 }
 function resolvedBinVersion(name) {
-  const bin = join(ROOT, 'node_modules', '.bin', name);
-  if (!existsSync(bin)) return { error: `node_modules/.bin/${name} missing (run \`npm ci\`)` };
+  const bin = join(ROOT, 'node_modules', '.bin', name)
+  if (!existsSync(bin))
+    return { error: `node_modules/.bin/${name} missing (run \`npm ci\`)` }
   try {
     const out = execSync(`${q(bin)} --version`, {
       cwd: ROOT,
       encoding: 'utf8',
       timeout: 60000,
       stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    })
     // First semver-shaped token is the tool's own version (vitest/4.1.9 …, tsx v4.22.4, vite/8.1.0).
-    const m = out.match(/\d+\.\d+\.\d+[-\w.]*/);
-    return m ? { version: m[0] } : { error: `${name} --version unparseable` };
+    const m = out.match(/\d+\.\d+\.\d+[-\w.]*/)
+    return m ? { version: m[0] } : { error: `${name} --version unparseable` }
   } catch {
-    return { error: `${name} --version failed (corrupt/incompatible binary?)` };
+    return { error: `${name} --version failed (corrupt/incompatible binary?)` }
   }
 }
 function toolchainIntegrityCheck() {
-  const lock = readJson(join(ROOT, 'package-lock.json'));
+  const lock = readJson(join(ROOT, 'package-lock.json'))
   if (!lock) {
-    record('toolchain-integrity', false, 'package-lock.json unreadable');
-    return;
+    record('toolchain-integrity', false, 'package-lock.json unreadable')
+    return
   }
-  const fails = [];
-  const summary = [];
+  const fails = []
+  const summary = []
   for (const name of TOOLCHAIN_PINS) {
-    const pin = lockedVersion(lock, name);
+    const pin = lockedVersion(lock, name)
     if (!pin) {
-      fails.push(`${name}: no version pinned in package-lock.json`);
-      continue;
+      fails.push(`${name}: no version pinned in package-lock.json`)
+      continue
     }
-    const got = resolvedBinVersion(name);
+    const got = resolvedBinVersion(name)
     if (got.error) {
-      fails.push(got.error);
-      continue;
+      fails.push(got.error)
+      continue
     }
-    if (got.version !== pin) fails.push(`${name} binary ${got.version} != locked ${pin}`);
-    else summary.push(`${name}@${pin}`);
+    if (got.version !== pin)
+      fails.push(`${name} binary ${got.version} != locked ${pin}`)
+    else summary.push(`${name}@${pin}`)
   }
   // Dep-tree consistency: `npm ls` exits non-zero if a listed dep is missing/invalid/extraneous.
   try {
@@ -234,126 +275,180 @@ function toolchainIntegrityCheck() {
       stdio: 'pipe',
       encoding: 'utf8',
       timeout: 120000,
-    });
-    writeFileSync(join(LOG_DIR, 'toolchain-integrity.log'), out);
+    })
+    writeFileSync(join(LOG_DIR, 'toolchain-integrity.log'), out)
   } catch (e) {
-    writeFileSync(join(LOG_DIR, 'toolchain-integrity.log'), `${e.stdout ?? ''}\n${e.stderr ?? ''}`);
-    fails.push('npm ls reports an inconsistent dep tree — see .verify-logs/toolchain-integrity.log');
+    writeFileSync(
+      join(LOG_DIR, 'toolchain-integrity.log'),
+      `${e.stdout ?? ''}\n${e.stderr ?? ''}`,
+    )
+    fails.push(
+      'npm ls reports an inconsistent dep tree — see .verify-logs/toolchain-integrity.log',
+    )
   }
-  record('toolchain-integrity', fails.length === 0, fails.slice(0, 3).join('; ') || summary.join(' · '));
+  record(
+    'toolchain-integrity',
+    fails.length === 0,
+    fails.slice(0, 3).join('; ') || summary.join(' · '),
+  )
 }
 
 // ---- DEMO-READY: deterministic data + static gates --------------------------------------
 
 // data-richness: the committed synthetic snapshot must be substantial and fully priced.
 function dataRichnessCheck() {
-  const snap = readJson(join(ROOT, 'data/fixtures/synthetic-snapshot.json'));
-  const card = readJson(join(ROOT, 'rateCard.json'));
+  const snap = readJson(join(ROOT, 'data/fixtures/synthetic-snapshot.json'))
+  const card = readJson(join(ROOT, 'rateCard.json'))
   if (!snap || !card) {
-    record('data-richness', false, 'snapshot or rateCard unreadable');
-    return;
+    record('data-richness', false, 'snapshot or rateCard unreadable')
+    return
   }
-  const recs = snap.records ?? [];
-  const sources = new Set(recs.map((r) => r.source));
-  const models = new Set(recs.map((r) => r.model));
-  const days = new Set(recs.map((r) => r.date));
-  const fails = [];
-  if (sources.size < 3) fails.push(`sources ${sources.size}<3`);
-  if (models.size < 4) fails.push(`models ${models.size}<4`);
-  if (days.size < 30) fails.push(`days ${days.size}<30`);
-  for (const t of ['inputTokens', 'outputTokens', 'cacheCreationTokens', 'cacheReadTokens']) {
-    if (!recs.some((r) => Number(r[t]) > 0)) fails.push(`no nonzero ${t}`);
+  const recs = snap.records ?? []
+  const sources = new Set(recs.map((r) => r.source))
+  const models = new Set(recs.map((r) => r.model))
+  const days = new Set(recs.map((r) => r.date))
+  const fails = []
+  if (sources.size < 3) fails.push(`sources ${sources.size}<3`)
+  if (models.size < 4) fails.push(`models ${models.size}<4`)
+  if (days.size < 30) fails.push(`days ${days.size}<30`)
+  for (const t of [
+    'inputTokens',
+    'outputTokens',
+    'cacheCreationTokens',
+    'cacheReadTokens',
+  ]) {
+    if (!recs.some((r) => Number(r[t]) > 0)) fails.push(`no nonzero ${t}`)
   }
-  const reasoningSources = new Set(recs.filter((r) => Number(r.reasoningTokens) > 0).map((r) => r.source));
-  const nonCodex = [...reasoningSources].filter((s) => s !== 'codex');
-  if (nonCodex.length) fails.push(`reasoning on non-codex source(s): ${nonCodex.join(',')}`);
-  if (!reasoningSources.has('codex')) fails.push('codex carries no reasoning tokens');
-  const priced = new Set(Object.keys(card.rates ?? {}));
-  const unpriced = [...models].filter((m) => !priced.has(m));
-  if (unpriced.length) fails.push(`unpriced model(s): ${unpriced.join(',')}`);
+  const reasoningSources = new Set(
+    recs.filter((r) => Number(r.reasoningTokens) > 0).map((r) => r.source),
+  )
+  const nonCodex = [...reasoningSources].filter((s) => s !== 'codex')
+  if (nonCodex.length)
+    fails.push(`reasoning on non-codex source(s): ${nonCodex.join(',')}`)
+  if (!reasoningSources.has('codex'))
+    fails.push('codex carries no reasoning tokens')
+  const priced = new Set(Object.keys(card.rates ?? {}))
+  const unpriced = [...models].filter((m) => !priced.has(m))
+  if (unpriced.length) fails.push(`unpriced model(s): ${unpriced.join(',')}`)
   record(
     'data-richness',
     fails.length === 0,
-    fails.slice(0, 4).join('; ') || `${sources.size} sources · ${models.size} models · ${days.size} days`,
-  );
+    fails.slice(0, 4).join('; ') ||
+      `${sources.size} sources · ${models.size} models · ${days.size} days`,
+  )
 }
 
 // byte-stability: regenerate the snapshot, then it must be unchanged (deterministic output).
 function byteStabilityCheck() {
   try {
-    execSync('npm run data:generate', { cwd: ROOT, stdio: 'pipe', encoding: 'utf8', timeout: 120000 });
+    execSync('npm run data:generate', {
+      cwd: ROOT,
+      stdio: 'pipe',
+      encoding: 'utf8',
+      timeout: 120000,
+    })
   } catch (e) {
-    writeFileSync(join(LOG_DIR, 'byte-stability.log'), `${e.stdout ?? ''}\n${e.stderr ?? ''}`);
-    record('byte-stability', false, 'data:generate failed');
-    return;
+    writeFileSync(
+      join(LOG_DIR, 'byte-stability.log'),
+      `${e.stdout ?? ''}\n${e.stderr ?? ''}`,
+    )
+    record('byte-stability', false, 'data:generate failed')
+    return
   }
-  const diff = git('status --porcelain data/fixtures/synthetic-snapshot.json');
-  record('byte-stability', diff === '', diff ? 'regeneration changed committed synthetic-snapshot.json' : '');
+  const diff = git('status --porcelain data/fixtures/synthetic-snapshot.json')
+  record(
+    'byte-stability',
+    diff === '',
+    diff ? 'regeneration changed committed synthetic-snapshot.json' : '',
+  )
 }
 
 // clock-determinism: range/aggregation app logic must not read wall-clock or local-tz date
 // APIs (ranges anchor to snapshot.asOf, UTC-only). Static ban over src/ app code; the
 // synthetic data-generator and test-support are exempt (not range logic).
 function clockDeterminismCheck() {
-  const EXEMPT = new Set(['src/domain/syntheticSnapshot.ts']);
+  const EXEMPT = new Set(['src/domain/syntheticSnapshot.ts'])
   const files = sourceFiles().filter(
-    (rel) => !EXEMPT.has(rel) && !rel.startsWith('src/test-support/') && !/\.test\.|\.demo\.test\./.test(rel),
-  );
+    (rel) =>
+      !EXEMPT.has(rel) &&
+      !rel.startsWith('src/test-support/') &&
+      !/\.test\.|\.demo\.test\./.test(rel),
+  )
   const BANNED = [
     [/\bDate\.now\s*\(/, 'Date.now()'],
     [/\bnew\s+Date\b/, 'new Date'],
     [/\bDate\.parse\b/, 'Date.parse'],
-    [/\.(getFullYear|getMonth|getDate|getDay|getHours|getMinutes|getSeconds)\s*\(/, 'local Date getter'],
+    [
+      /\.(getFullYear|getMonth|getDate|getDay|getHours|getMinutes|getSeconds)\s*\(/,
+      'local Date getter',
+    ],
     [/toLocale(Date|Time)?String/, 'toLocale*String'],
     [/\bIntl\.DateTimeFormat\b/, 'Intl.DateTimeFormat'],
-  ];
-  const hits = [];
+  ]
+  const hits = []
   for (const rel of files) {
-    const code = stripComments(readFileSync(join(ROOT, rel), 'utf8'));
-    for (const [re, label] of BANNED) if (re.test(code)) hits.push(`${rel}: ${label}`);
+    const code = stripComments(readFileSync(join(ROOT, rel), 'utf8'))
+    for (const [re, label] of BANNED)
+      if (re.test(code)) hits.push(`${rel}: ${label}`)
   }
-  record('clock-determinism', hits.length === 0, hits.slice(0, 3).join('; '));
+  record('clock-determinism', hits.length === 0, hits.slice(0, 3).join('; '))
 }
 
 // money-encoding: no numeric money in our committed data JSON. rateCard rates must be
 // base-10 integer strings; anywhere else, a numeric value under a cost/pico/usd key FAILs.
 // The wire-format decoder envelopes are exempt (ccusage emits float cost; the decoder
 // discards it), as is ccusage.version.json.
-const MONEY_KEY_RE = /cost|pico|usd/i;
-const isPlainObject = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
+const MONEY_KEY_RE = /cost|pico|usd/i
+const isPlainObject = (v) =>
+  typeof v === 'object' && v !== null && !Array.isArray(v)
 function walkMoney(node, path, file, fails) {
   if (Array.isArray(node)) {
-    node.forEach((v, i) => walkMoney(v, `${path}[${i}]`, file, fails));
-    return;
+    node.forEach((v, i) => walkMoney(v, `${path}[${i}]`, file, fails))
+    return
   }
-  if (!isPlainObject(node)) return;
+  if (!isPlainObject(node)) return
   for (const [k, v] of Object.entries(node)) {
-    const here = path ? `${path}.${k}` : k;
+    const here = path ? `${path}.${k}` : k
     if (typeof v === 'number' && MONEY_KEY_RE.test(k)) {
-      fails.push(`${file}: "${here}" is numeric money (${v}) — use a base-10 integer string`);
+      fails.push(
+        `${file}: "${here}" is numeric money (${v}) — use a base-10 integer string`,
+      )
     }
-    walkMoney(v, here, file, fails);
+    walkMoney(v, here, file, fails)
   }
 }
 function moneyEncodingCheck() {
-  const fails = [];
-  const card = readJson(join(ROOT, 'rateCard.json'));
+  const fails = []
+  const card = readJson(join(ROOT, 'rateCard.json'))
   if (!card) {
-    fails.push('rateCard.json unreadable');
+    fails.push('rateCard.json unreadable')
   } else {
-    if (card.unit !== 'picoUsdPerToken') fails.push(`rateCard unit "${card.unit}" != picoUsdPerToken`);
+    if (card.unit !== 'picoUsdPerToken')
+      fails.push(`rateCard unit "${card.unit}" != picoUsdPerToken`)
     for (const [model, bands] of Object.entries(card.rates ?? {})) {
       for (const band of bands ?? []) {
-        for (const f of ['input', 'output', 'cacheCreation', 'cacheRead', 'reasoning']) {
-          const val = band?.[f];
+        for (const f of [
+          'input',
+          'output',
+          'cacheCreation',
+          'cacheRead',
+          'reasoning',
+        ]) {
+          const val = band?.[f]
           if (typeof val !== 'string' || !/^\d+$/.test(val)) {
-            fails.push(`rateCard.${model}.${f} = ${JSON.stringify(val)} (must be a base-10 integer string)`);
+            fails.push(
+              `rateCard.${model}.${f} = ${JSON.stringify(val)} (must be a base-10 integer string)`,
+            )
           }
         }
       }
     }
   }
-  const candidates = ['rateCard.json', ...jsonFilesUnder('data/fixtures'), ...jsonFilesUnder('config')].filter(
+  const candidates = [
+    'rateCard.json',
+    ...jsonFilesUnder('data/fixtures'),
+    ...jsonFilesUnder('config'),
+  ].filter(
     (rel) =>
       rel === 'rateCard.json' ||
       rel.startsWith('config/') ||
@@ -363,12 +458,12 @@ function moneyEncodingCheck() {
         !rel.startsWith('data/fixtures/decoder/') &&
         !/\/raw-[^/]*$/.test(rel) &&
         rel !== 'data/fixtures/ccusage.version.json'),
-  );
+  )
   for (const rel of candidates) {
-    const j = readJson(join(ROOT, rel));
-    if (j) walkMoney(j, '', rel, fails);
+    const j = readJson(join(ROOT, rel))
+    if (j) walkMoney(j, '', rel, fails)
   }
-  record('money-encoding', fails.length === 0, fails.slice(0, 3).join('; '));
+  record('money-encoding', fails.length === 0, fails.slice(0, 3).join('; '))
 }
 
 // import-boundary: src/** production code may not import any verifier fixture (goldens /
@@ -377,29 +472,37 @@ function moneyEncodingCheck() {
 // so a panel can neither read the answer key, detect which card is active, nor bypass the
 // injected `DataSource` seam by computing straight from the frozen fixture (Codex r3 major).
 function importBoundaryCheck() {
-  const FORBIDDEN_FIXTURE = /(expected-normalized|normalization-input|panel-golden|scale-factors|oracle-ledger)/;
-  const RATECARD = /rateCard\.json/;
-  const RATECARD_ALLOW = /^src\/(data|domain\/rateCard)/;
+  const FORBIDDEN_FIXTURE =
+    /(expected-normalized|normalization-input|panel-golden|scale-factors|oracle-ledger)/
+  const RATECARD = /rateCard\.json/
+  const RATECARD_ALLOW = /^src\/(data|domain\/rateCard)/
   // The committed synthetic snapshot is the data BEHIND the DataSource seam. Only the fixtures
   // backend may import it directly; every other src file must read snapshot data via the
   // injected `DataSource` (so the oracle's scaled/alternate sources actually reach the panel).
-  const SNAPSHOT = /synthetic-snapshot\.json/;
-  const SNAPSHOT_ALLOW = 'src/data/FixturesDataSource.ts';
-  const fails = [];
+  const SNAPSHOT = /synthetic-snapshot\.json/
+  const SNAPSHOT_ALLOW = 'src/data/FixturesDataSource.ts'
+  const fails = []
   for (const rel of sourceFiles()) {
-    const code = stripComments(readFileSync(join(ROOT, rel), 'utf8'));
-    const specs = [...code.matchAll(/(?:from|import|require)\s*\(?\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
+    const code = stripComments(readFileSync(join(ROOT, rel), 'utf8'))
+    const specs = [
+      ...code.matchAll(/(?:from|import|require)\s*\(?\s*['"]([^'"]+)['"]/g),
+    ].map((m) => m[1])
     for (const s of specs) {
-      if (FORBIDDEN_FIXTURE.test(s)) fails.push(`${rel} imports verifier fixture: ${s}`);
+      if (FORBIDDEN_FIXTURE.test(s))
+        fails.push(`${rel} imports verifier fixture: ${s}`)
       if (RATECARD.test(s) && !RATECARD_ALLOW.test(rel)) {
-        fails.push(`${rel} imports rateCard.json outside the normalizer/data-provider path`);
+        fails.push(
+          `${rel} imports rateCard.json outside the normalizer/data-provider path`,
+        )
       }
       if (SNAPSHOT.test(s) && rel !== SNAPSHOT_ALLOW) {
-        fails.push(`${rel} imports synthetic-snapshot.json outside the DataSource seam (only ${SNAPSHOT_ALLOW} may)`);
+        fails.push(
+          `${rel} imports synthetic-snapshot.json outside the DataSource seam (only ${SNAPSHOT_ALLOW} may)`,
+        )
       }
     }
   }
-  record('import-boundary', fails.length === 0, fails.slice(0, 3).join('; '));
+  record('import-boundary', fails.length === 0, fails.slice(0, 3).join('; '))
 }
 
 // env-detection-ban: mutable src/** render code must NOT branch on the test/oracle environment.
@@ -416,14 +519,22 @@ function envDetectionBanCheck() {
     [/\bORACLE_RUN_NONCE\b/, 'ORACLE_RUN_NONCE'],
     [/\bVITEST\b/, 'VITEST'],
     [/\bNODE_ENV\b/, 'NODE_ENV'],
-  ];
-  const files = sourceFiles().filter((rel) => !/\.test\.|\.demo\.test\./.test(rel));
-  const hits = [];
+  ]
+  const files = sourceFiles().filter(
+    (rel) => !/\.test\.|\.demo\.test\./.test(rel),
+  )
+  const hits = []
   for (const rel of files) {
-    const code = stripComments(readFileSync(join(ROOT, rel), 'utf8'));
-    for (const [re, label] of BANNED) if (re.test(code)) hits.push(`${rel}: ${label}`);
+    const code = stripComments(readFileSync(join(ROOT, rel), 'utf8'))
+    for (const [re, label] of BANNED)
+      if (re.test(code)) hits.push(`${rel}: ${label}`)
   }
-  record('env-detection-ban', hits.length === 0, hits.slice(0, 3).join('; ') || `${files.length} src file(s) free of test-env detection`);
+  record(
+    'env-detection-ban',
+    hits.length === 0,
+    hits.slice(0, 3).join('; ') ||
+      `${files.length} src file(s) free of test-env detection`,
+  )
 }
 
 // no-egress: the app + ingest code may only read locally — no remote URLs / CDN imports /
@@ -434,20 +545,78 @@ function noEgressCheck() {
     'scripts/verify.mjs',
     'scripts/certify.mjs',
     'scripts/livelock-guard.mjs',
-  ]);
+  ])
   const files = [
     ...sourceFiles(),
     ...scriptFiles().filter((rel) => !VERIFIER_OWNED.has(rel)),
     ...filesUnder('public', /\.(ts|tsx|js|mjs|cjs|html|css)$/),
     ...(existsSync(join(ROOT, 'index.html')) ? ['index.html'] : []),
-  ];
-  const REMOTE_URL = /\bhttps?:\/\/(?!localhost|127\.0\.0\.1|0\.0\.0\.0)[^\s'"`)]+/i;
-  const hits = [];
+  ]
+  const REMOTE_URL =
+    /\bhttps?:\/\/(?!localhost|127\.0\.0\.1|0\.0\.0\.0)[^\s'"`)]+/i
+  const hits = []
   for (const rel of files) {
-    const m = readFileSync(join(ROOT, rel), 'utf8').match(REMOTE_URL);
-    if (m) hits.push(`${rel}: ${m[0].slice(0, 50)}`);
+    const m = readFileSync(join(ROOT, rel), 'utf8').match(REMOTE_URL)
+    if (m) hits.push(`${rel}: ${m[0].slice(0, 50)}`)
   }
-  record('no-egress', hits.length === 0, hits.slice(0, 3).join('; '));
+  record('no-egress', hits.length === 0, hits.slice(0, 3).join('; '))
+}
+
+// local-output-untracked: the real ingest writes local-only dashboard outputs. `.gitignore` should
+// catch normal writes, but a force-add would make `git-clean` pass after commit. Fail if either output
+// is tracked at all, regardless of current worktree cleanliness.
+function localOutputUntrackedCheck() {
+  const paths = ['data/snapshot.json', 'data/status.json']
+  const tracked = git(`ls-files ${paths.map(q).join(' ')}`)
+    .split('\n')
+    .filter(Boolean)
+  record(
+    'local-output-untracked',
+    tracked.length === 0,
+    tracked.length
+      ? `local output file(s) tracked: ${tracked.join(', ')}`
+      : 'real ingest outputs are git-untracked',
+  )
+}
+
+// tracked-private-leak-scan: fixture tests may mention synthetic session/transcript fields, but
+// product/docs/config files must not carry local paths or durable ledger identifiers. This catches a
+// forced-add or accidental prose/code leak even if the worktree is otherwise clean.
+function trackedPrivateLeakScanCheck() {
+  const targets = ['README.md', 'PROGRESS.md', 'docs', 'src', 'config'].filter(
+    (p) => existsSync(join(ROOT, p)),
+  )
+  if (targets.length === 0) {
+    record('tracked-private-leak-scan', false, 'no scan targets found')
+    return
+  }
+  const pattern =
+    '/Users/tammypais\\b|private-client|raw-session-id|sha256:[0-9a-f]{8,}|session_key|transcript_(hash|key)'
+  try {
+    const out = execSync(
+      `git grep -nIE ${q(pattern)} -- ${targets.map(q).join(' ')}`,
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+        timeout: 60000,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    )
+    writeFileSync(join(LOG_DIR, 'tracked-private-leak-scan.log'), out)
+    record(
+      'tracked-private-leak-scan',
+      false,
+      `${out.trim().split('\n').length} private marker hit(s)`,
+    )
+  } catch (e) {
+    if (e.status === 1) record('tracked-private-leak-scan', true)
+    else
+      record(
+        'tracked-private-leak-scan',
+        false,
+        `git grep error (status ${e.status ?? '?'})`,
+      )
+  }
 }
 
 // script-contract: the frozen package.json script bodies must match exactly (so certify
@@ -462,36 +631,47 @@ const EXPECTED_SCRIPTS = {
   'verify:demo-ready': 'node scripts/verify.mjs --demo-ready',
   'verify:complete': 'node scripts/verify.mjs --complete',
   'certify:complete': 'node scripts/certify.mjs',
-};
+}
 function scriptContractCheck() {
-  const scripts = readJson(join(ROOT, 'package.json'))?.scripts ?? {};
-  const fails = [];
+  const scripts = readJson(join(ROOT, 'package.json'))?.scripts ?? {}
+  const fails = []
   for (const [k, v] of Object.entries(EXPECTED_SCRIPTS)) {
-    if (scripts[k] !== v) fails.push(`${k}: "${scripts[k] ?? '(missing)'}" != "${v}"`);
+    if (scripts[k] !== v)
+      fails.push(`${k}: "${scripts[k] ?? '(missing)'}" != "${v}"`)
   }
-  record('script-contract', fails.length === 0, fails.slice(0, 3).join('; '));
+  record('script-contract', fails.length === 0, fails.slice(0, 3).join('; '))
 }
 
 // ccusage-version: package.json + lockfile + ccusage.version.json must agree (pinned).
 function ccusageVersionCheck() {
-  const pin = readJson(join(ROOT, 'data/fixtures/ccusage.version.json'))?.ccusage;
-  const pkg = readJson(join(ROOT, 'package.json'));
-  const dep = pkg?.devDependencies?.ccusage ?? pkg?.dependencies?.ccusage;
-  const lockV = readJson(join(ROOT, 'package-lock.json'))?.packages?.['node_modules/ccusage']?.version;
-  const fails = [];
-  if (!pin) fails.push('ccusage.version.json missing ccusage');
-  if (dep !== pin) fails.push(`package.json ccusage ${dep} != ${pin}`);
-  if (lockV !== pin) fails.push(`lockfile ccusage ${lockV} != ${pin}`);
-  record('ccusage-version', fails.length === 0, fails.join('; ') || `pinned ${pin}`);
+  const pin = readJson(
+    join(ROOT, 'data/fixtures/ccusage.version.json'),
+  )?.ccusage
+  const pkg = readJson(join(ROOT, 'package.json'))
+  const dep = pkg?.devDependencies?.ccusage ?? pkg?.dependencies?.ccusage
+  const lockV = readJson(join(ROOT, 'package-lock.json'))?.packages?.[
+    'node_modules/ccusage'
+  ]?.version
+  const fails = []
+  if (!pin) fails.push('ccusage.version.json missing ccusage')
+  if (dep !== pin) fails.push(`package.json ccusage ${dep} != ${pin}`)
+  if (lockV !== pin) fails.push(`lockfile ccusage ${lockV} != ${pin}`)
+  record(
+    'ccusage-version',
+    fails.length === 0,
+    fails.join('; ') || `pinned ${pin}`,
+  )
 }
 
 // normalization-golden: run the app's normalizeCost over the frozen input via tsx, and
 // assert EXACT BigInt equality (per row + total) with the hand-derived expected golden.
 function normalizationGoldenCheck() {
-  const expected = readJson(join(ROOT, 'data/fixtures/expected-normalized.json'));
+  const expected = readJson(
+    join(ROOT, 'data/fixtures/expected-normalized.json'),
+  )
   if (!expected) {
-    record('normalization-golden', false, 'expected-normalized.json unreadable');
-    return;
+    record('normalization-golden', false, 'expected-normalized.json unreadable')
+    return
   }
   const src = `
 import { normalizeCost } from ${q(join(ROOT, 'src/domain/normalizeCost.ts'))};
@@ -501,31 +681,41 @@ const input = JSON.parse(readFileSync(${q(join(ROOT, 'data/fixtures/normalizatio
 const rows = input.records.map((r) => ({ date: r.date, source: r.source, project: r.project, model: r.model, costPico: normalizeCost(r, card).toString() }));
 const total = rows.reduce((a, r) => a + BigInt(r.costPico), 0n).toString();
 process.stdout.write(JSON.stringify({ rows, total, version: card.version }));
-`;
-  const res = runEmitter('normalization-golden', src);
+`
+  const res = runEmitter('normalization-golden', src)
   if (!res.ok) {
-    record('normalization-golden', false, 'normalizeCost emitter failed — see .verify-logs/normalization-golden.log');
-    return;
+    record(
+      'normalization-golden',
+      false,
+      'normalizeCost emitter failed — see .verify-logs/normalization-golden.log',
+    )
+    return
   }
-  const got = res.data;
-  const fails = [];
+  const got = res.data
+  const fails = []
   if (got.version !== expected.rateCardVersion) {
-    fails.push(`card version ${got.version} != ${expected.rateCardVersion}`);
+    fails.push(`card version ${got.version} != ${expected.rateCardVersion}`)
   }
   // Key by the FULL canonical identity (date, source, project, model) — the same tuple the snapshot
   // sort + carrier keys use — so the frozen gate enforces the same identity the mutable test does.
-  const idKey = (r) => `${r.date}|${r.source}|${r.project}|${r.model}`;
-  const want = new Map(expected.rows.map((r) => [idKey(r), r.costPico]));
+  const idKey = (r) => `${r.date}|${r.source}|${r.project}|${r.model}`
+  const want = new Map(expected.rows.map((r) => [idKey(r), r.costPico]))
   if (got.rows.length !== expected.rows.length) {
-    fails.push(`row count ${got.rows.length} != ${expected.rows.length}`);
+    fails.push(`row count ${got.rows.length} != ${expected.rows.length}`)
   }
   for (const row of got.rows) {
-    const key = idKey(row);
-    if (!want.has(key)) fails.push(`unexpected row ${key}`);
-    else if (row.costPico !== want.get(key)) fails.push(`${key}: ${row.costPico} != ${want.get(key)}`);
+    const key = idKey(row)
+    if (!want.has(key)) fails.push(`unexpected row ${key}`)
+    else if (row.costPico !== want.get(key))
+      fails.push(`${key}: ${row.costPico} != ${want.get(key)}`)
   }
-  if (got.total !== expected.totalPico) fails.push(`total ${got.total} != ${expected.totalPico}`);
-  record('normalization-golden', fails.length === 0, fails.slice(0, 3).join('; ') || 'exact BigInt match');
+  if (got.total !== expected.totalPico)
+    fails.push(`total ${got.total} != ${expected.totalPico}`)
+  record(
+    'normalization-golden',
+    fails.length === 0,
+    fails.slice(0, 3).join('; ') || 'exact BigInt match',
+  )
 }
 
 // normalization-property: the finite golden (4 fixed rows) could be special-cased. This runs the
@@ -616,20 +806,24 @@ try { normalizeCost({ source: 'codex', model: 'no-such-model-xyz', date: '2026-0
 if (!threw) fails.push('unpriced model did not throw (fail-open)');
 
 process.stdout.write(JSON.stringify({ ok: fails.length === 0, n, fails: fails.slice(0, 6) }));
-`;
-  const res = runEmitter('normalization-property', src);
+`
+  const res = runEmitter('normalization-property', src)
   if (!res.ok) {
-    record('normalization-property', false, 'property emitter failed — see .verify-logs/normalization-property.log');
-    return;
+    record(
+      'normalization-property',
+      false,
+      'property emitter failed — see .verify-logs/normalization-property.log',
+    )
+    return
   }
-  const d = res.data;
+  const d = res.data
   record(
     'normalization-property',
     d.ok === true,
     d.ok === true
       ? `${d.n} seeded-random records match an independent formula (real + scaled + 2-band cards)`
       : (d.fails ?? []).slice(0, 3).join('; '),
-  );
+  )
 }
 
 // ccusage-decoder-contract: decode the frozen scrubbed per-source envelopes through the
@@ -638,9 +832,9 @@ process.stdout.write(JSON.stringify({ ok: fails.length === 0, n, fails: fails.sl
 // Reserved project sentinels the daily decoders stamp (mirror of src/domain/projects.ts — daily
 // envelopes carry no per-project signal, so claude→Unattributed [reconciliation-only], codex/
 // openclaw→their tool sentinel). Pinned here so the frozen gate fails on a wrong-project decoder.
-const D_UNATTRIBUTED = '__unattributed__';
-const D_CODEX = '__codex__';
-const D_OPENCLAW = '__openclaw__';
+const D_UNATTRIBUTED = '__unattributed__'
+const D_CODEX = '__codex__'
+const D_OPENCLAW = '__openclaw__'
 const RECORD_FIELDS = [
   'source',
   'date',
@@ -651,32 +845,38 @@ const RECORD_FIELDS = [
   'cacheCreationTokens',
   'cacheReadTokens',
   'reasoningTokens',
-];
+  'costPico',
+]
 function compareRecords(label, got, want, fails) {
   if (!Array.isArray(got)) {
-    fails.push(`${label}: decoder returned no array`);
-    return;
+    fails.push(`${label}: decoder returned no array`)
+    return
   }
   if (got.length !== want.length) {
-    fails.push(`${label}: ${got.length} records != expected ${want.length}`);
-    return;
+    fails.push(`${label}: ${got.length} records != expected ${want.length}`)
+    return
   }
   for (let i = 0; i < want.length; i++) {
     for (const f of RECORD_FIELDS) {
-      if (got[i][f] !== want[i][f]) fails.push(`${label}[${i}].${f}: ${got[i][f]} != ${want[i][f]}`);
+      if (got[i][f] !== want[i][f])
+        fails.push(`${label}[${i}].${f}: ${got[i][f]} != ${want[i][f]}`)
     }
   }
 }
 function decoderContractCheck() {
-  const dir = join(ROOT, 'data/fixtures/decoder');
+  const dir = join(ROOT, 'data/fixtures/decoder')
   const envs = {
     claude: readJson(join(dir, 'claude-daily.json')),
     codex: readJson(join(dir, 'codex-daily.json')),
     openclaw: readJson(join(dir, 'openclaw-daily.json')),
-  };
+  }
   if (!envs.claude || !envs.codex || !envs.openclaw) {
-    record('ccusage-decoder-contract', false, 'decoder fixture(s) missing/unreadable');
-    return;
+    record(
+      'ccusage-decoder-contract',
+      false,
+      'decoder fixture(s) missing/unreadable',
+    )
+    return
   }
   const src = `
 import { decodeClaudeDaily, decodeCodexDaily, decodeOpenclawDaily } from ${q(join(ROOT, 'src/domain/decode.ts'))};
@@ -687,16 +887,20 @@ process.stdout.write(JSON.stringify({
   codex: decodeCodexDaily(rd(${q(join(dir, 'codex-daily.json'))})),
   openclaw: decodeOpenclawDaily(rd(${q(join(dir, 'openclaw-daily.json'))})),
 }));
-`;
-  const res = runEmitter('ccusage-decoder-contract', src);
+`
+  const res = runEmitter('ccusage-decoder-contract', src)
   if (!res.ok) {
-    record('ccusage-decoder-contract', false, 'decoder emitter failed — see .verify-logs/ccusage-decoder-contract.log');
-    return;
+    record(
+      'ccusage-decoder-contract',
+      false,
+      'decoder emitter failed — see .verify-logs/ccusage-decoder-contract.log',
+    )
+    return
   }
-  const got = res.data;
-  const fails = [];
+  const got = res.data
+  const fails = []
   // Independent expected reconstruction straight from the raw envelopes.
-  const wantClaude = [];
+  const wantClaude = []
   for (const day of envs.claude.daily) {
     for (const mb of day.modelBreakdowns) {
       wantClaude.push({
@@ -709,10 +913,10 @@ process.stdout.write(JSON.stringify({
         cacheCreationTokens: mb.cacheCreationTokens,
         cacheReadTokens: mb.cacheReadTokens,
         reasoningTokens: 0,
-      });
+      })
     }
   }
-  const wantCodex = [];
+  const wantCodex = []
   for (const day of envs.codex.daily) {
     for (const [model, m] of Object.entries(day.models)) {
       wantCodex.push({
@@ -725,13 +929,15 @@ process.stdout.write(JSON.stringify({
         cacheCreationTokens: m.cacheCreationTokens,
         cacheReadTokens: m.cacheReadTokens,
         reasoningTokens: m.reasoningOutputTokens,
-      });
+      })
     }
   }
-  const wantOpenclaw = [];
+  const wantOpenclaw = []
   for (const day of envs.openclaw.daily) {
     const model =
-      day.modelsUsed.length === 1 ? String(day.modelsUsed[0]).replace('[openclaw] ', '') : '(all)';
+      day.modelsUsed.length === 1
+        ? String(day.modelsUsed[0]).replace('[openclaw] ', '')
+        : '(all)'
     wantOpenclaw.push({
       source: 'openclaw',
       date: day.date,
@@ -742,13 +948,17 @@ process.stdout.write(JSON.stringify({
       cacheCreationTokens: day.cacheCreationTokens,
       cacheReadTokens: day.cacheReadTokens,
       reasoningTokens: 0,
-    });
+    })
   }
-  compareRecords('claude', got.claude, wantClaude, fails);
-  compareRecords('codex', got.codex, wantCodex, fails);
-  compareRecords('openclaw', got.openclaw, wantOpenclaw, fails);
-  const total = wantClaude.length + wantCodex.length + wantOpenclaw.length;
-  record('ccusage-decoder-contract', fails.length === 0, fails.slice(0, 3).join('; ') || `${total} records decoded field-by-field`);
+  compareRecords('claude', got.claude, wantClaude, fails)
+  compareRecords('codex', got.codex, wantCodex, fails)
+  compareRecords('openclaw', got.openclaw, wantOpenclaw, fails)
+  const total = wantClaude.length + wantCodex.length + wantOpenclaw.length
+  record(
+    'ccusage-decoder-contract',
+    fails.length === 0,
+    fails.slice(0, 3).join('; ') || `${total} records decoded field-by-field`,
+  )
 }
 
 // ingest gates: ingest is not built yet (Phase 2). Report PENDING rather than fabricate a
@@ -756,12 +966,18 @@ process.stdout.write(JSON.stringify({
 // guards run (the exact self-check CLI contract is finalized with ingest in Phase 2).
 function ingestGates() {
   if (!existsSync(join(ROOT, 'scripts/ingest.mjs'))) {
-    recordPending('ingest-fixture', 'ingest not built (scripts/ingest.mjs absent — Phase 2)');
-    recordPending('ingest-argv', 'ingest not built (scripts/ingest.mjs absent — Phase 2)');
-    return;
+    recordPending(
+      'ingest-fixture',
+      'ingest not built (scripts/ingest.mjs absent — Phase 2)',
+    )
+    recordPending(
+      'ingest-argv',
+      'ingest not built (scripts/ingest.mjs absent — Phase 2)',
+    )
+    return
   }
-  runCheck('ingest-fixture', 'npm run ingest -- --from-fixture --check', 120000);
-  runCheck('ingest-argv', 'node scripts/ingest.mjs --argv-selfcheck', 120000);
+  runCheck('ingest-fixture', 'npm run ingest -- --from-fixture --check', 120000)
+  runCheck('ingest-argv', 'node scripts/ingest.mjs --argv-selfcheck', 120000)
 }
 
 // ---- v2 project gates (all pass/fail — NEVER PENDING; v2 completion must not tolerate a skip) ----
@@ -769,60 +985,88 @@ function ingestGates() {
 const PROJECT_GATES = [
   'project-attribution-contract',
   'ccusage-instances-decoder-contract',
+  'ledger-projection-contract',
   'project-ingest-contract',
   'project-richness',
-];
+]
 
 /** Compare two `{ key: {kind,label} }` registries order-independently (deriveRegistry inserts in
  * record-encounter order, so a raw JSON.stringify would spuriously differ). */
 function registryEquals(a, b) {
-  const ak = Object.keys(a).sort();
-  const bk = Object.keys(b).sort();
-  if (ak.join('\u0000') !== bk.join('\u0000')) return false;
-  return ak.every((k) => a[k]?.kind === b[k]?.kind && a[k]?.label === b[k]?.label);
+  const ak = Object.keys(a).sort()
+  const bk = Object.keys(b).sort()
+  if (ak.join('\u0000') !== bk.join('\u0000')) return false
+  return ak.every(
+    (k) => a[k]?.kind === b[k]?.kind && a[k]?.label === b[k]?.label,
+  )
 }
 
 // project-attribution-contract: run the PURE resolveProject over the frozen attribution fixture and
 // assert {kind,key,label} exactly — pins LABEL correctness, which token reconciliation cannot see.
 function projectAttributionContractCheck() {
-  const path = join(ROOT, 'data/fixtures/project-attribution.json');
-  const fixture = readJson(path);
+  const path = join(ROOT, 'data/fixtures/project-attribution.json')
+  const fixture = readJson(path)
   if (!fixture || !Array.isArray(fixture.cases) || fixture.cases.length === 0) {
-    record('project-attribution-contract', false, 'project-attribution.json missing or has no cases');
-    return;
+    record(
+      'project-attribution-contract',
+      false,
+      'project-attribution.json missing or has no cases',
+    )
+    return
   }
   const src = `
 import { resolveProject } from ${q(join(ROOT, 'src/domain/projectIdentity.ts'))};
 import { readFileSync } from 'node:fs';
 const cases = JSON.parse(readFileSync(${q(path)}, 'utf8')).cases;
 process.stdout.write(JSON.stringify(cases.map((c) => resolveProject(c.encodedDir, { knownRoots: c.knownRoots, aliases: c.aliases }))));
-`;
-  const res = runEmitter('project-attribution-contract', src);
+`
+  const res = runEmitter('project-attribution-contract', src)
   if (!res.ok) {
-    record('project-attribution-contract', false, 'resolver emitter failed — see .verify-logs/project-attribution-contract.log');
-    return;
+    record(
+      'project-attribution-contract',
+      false,
+      'resolver emitter failed — see .verify-logs/project-attribution-contract.log',
+    )
+    return
   }
-  const fails = [];
+  const fails = []
   fixture.cases.forEach((c, i) => {
-    const got = res.data[i];
-    const e = c.expected;
-    if (!got || got.kind !== e.kind || got.key !== e.key || got.label !== e.label) {
-      fails.push(`${c.name}: ${JSON.stringify(got)} != ${JSON.stringify(e)}`);
+    const got = res.data[i]
+    const e = c.expected
+    if (
+      !got ||
+      got.kind !== e.kind ||
+      got.key !== e.key ||
+      got.label !== e.label
+    ) {
+      fails.push(`${c.name}: ${JSON.stringify(got)} != ${JSON.stringify(e)}`)
     }
-  });
-  record('project-attribution-contract', fails.length === 0, fails.slice(0, 3).join('; ') || `${fixture.cases.length} attribution cases`);
+  })
+  record(
+    'project-attribution-contract',
+    fails.length === 0,
+    fails.slice(0, 3).join('; ') || `${fixture.cases.length} attribution cases`,
+  )
 }
 
 // ccusage-instances-decoder-contract: decode the committed --instances fixture through the REAL
 // decoder + resolver and check every canonical field (incl. project) against the frozen expected
 // merge — proves decodeClaudeInstances + resolveProject attribute + merge correctly, not just daily.
 function instancesDecoderContractCheck() {
-  const path = join(ROOT, 'data/fixtures/decoder/claude-instances.json');
-  const fixture = readJson(path);
-  const contract = fixture && fixture._contract;
-  if (!contract || !Array.isArray(contract.expectedRecords) || !Array.isArray(contract.knownRoots)) {
-    record('ccusage-instances-decoder-contract', false, 'claude-instances.json _contract (knownRoots/expectedRecords) missing');
-    return;
+  const path = join(ROOT, 'data/fixtures/decoder/claude-instances.json')
+  const fixture = readJson(path)
+  const contract = fixture && fixture._contract
+  if (
+    !contract ||
+    !Array.isArray(contract.expectedRecords) ||
+    !Array.isArray(contract.knownRoots)
+  ) {
+    record(
+      'ccusage-instances-decoder-contract',
+      false,
+      'claude-instances.json _contract (knownRoots/expectedRecords) missing',
+    )
+    return
   }
   const src = `
 import { decodeClaudeInstances } from ${q(join(ROOT, 'src/domain/decode.ts'))};
@@ -832,89 +1076,214 @@ const fx = JSON.parse(readFileSync(${q(path)}, 'utf8'));
 const roots = fx._contract.knownRoots;
 const resolveFn = (d) => resolveProject(d, { knownRoots: roots }).key;
 process.stdout.write(JSON.stringify(decodeClaudeInstances(fx, resolveFn)));
-`;
-  const res = runEmitter('ccusage-instances-decoder-contract', src);
+`
+  const res = runEmitter('ccusage-instances-decoder-contract', src)
   if (!res.ok) {
-    record('ccusage-instances-decoder-contract', false, 'instances decoder emitter failed — see .verify-logs/ccusage-instances-decoder-contract.log');
-    return;
+    record(
+      'ccusage-instances-decoder-contract',
+      false,
+      'instances decoder emitter failed — see .verify-logs/ccusage-instances-decoder-contract.log',
+    )
+    return
   }
-  const fails = [];
-  compareRecords('instances', res.data, contract.expectedRecords, fails); // RECORD_FIELDS includes project
-  record('ccusage-instances-decoder-contract', fails.length === 0, fails.slice(0, 3).join('; ') || `${contract.expectedRecords.length} instance records decoded field-by-field`);
+  const fails = []
+  compareRecords('instances', res.data, contract.expectedRecords, fails) // RECORD_FIELDS includes project
+  record(
+    'ccusage-instances-decoder-contract',
+    fails.length === 0,
+    fails.slice(0, 3).join('; ') ||
+      `${contract.expectedRecords.length} instance records decoded field-by-field`,
+  )
 }
 
-// project-ingest-contract: drive the ingest's OFFLINE fixture path (committed --instances fixture +
-// synthetic frozen roots) and assert the produced snapshot attributes projects EXACTLY — the registry,
-// that claude work reaches the repo projects (a degenerate all-__unattributed__ resolver FAILs here),
-// and that every record's project is registered. Verifier-OWNED (the assertion lives here, not in a
-// loop-editable ingest self-report) + the daily reconciliation already ran (blocking) inside ingest.
-function projectIngestContractCheck() {
-  const outPath = join(LOG_DIR, 'project-ingest-snapshot.json');
-  try {
-    execSync(`node scripts/ingest.mjs --from-fixture --out ${q(outPath)}`, { cwd: ROOT, stdio: 'pipe', timeout: 120000 });
-  } catch (e) {
-    writeFileSync(join(LOG_DIR, 'project-ingest-contract.log'), `${e.stdout ?? ''}\n${e.stderr ?? ''}`);
-    record('project-ingest-contract', false, 'fixture ingest failed — see .verify-logs/project-ingest-contract.log');
-    return;
+// ledger-projection-contract: run the sanitized durable ledger fixture through the real projection
+// path and assert the exact dashboard Snapshot bytes that matter: opaque project keys, labels,
+// merged duplicate identities, exact allocated costPico, and no raw path/session/transcript leakage
+// in the projected snapshot. This is the verifier-owned proof for the activity-derived attribution
+// path that replaces launch-directory attribution.
+function ledgerProjectionContractCheck() {
+  const path = join(ROOT, 'data/fixtures/ledger-projection.json')
+  const fixture = readJson(path)
+  if (
+    !fixture ||
+    !fixture.projectMap ||
+    !Array.isArray(fixture.rows) ||
+    !fixture.expectedProjection
+  ) {
+    record(
+      'ledger-projection-contract',
+      false,
+      'ledger-projection.json missing projectMap/rows/expectedProjection',
+    )
+    return
   }
-  const snap = readJson(outPath);
+  const src = `
+import { projectLedgerRowsToSnapshot } from ${q(join(ROOT, 'src/domain/ledgerProjection.ts'))};
+import { readFileSync } from 'node:fs';
+const fx = JSON.parse(readFileSync(${q(path)}, 'utf8'));
+process.stdout.write(JSON.stringify(projectLedgerRowsToSnapshot(fx.rows, fx.projectMap)));
+`
+  const res = runEmitter('ledger-projection-contract', src)
+  if (!res.ok) {
+    record(
+      'ledger-projection-contract',
+      false,
+      'ledger projection emitter failed — see .verify-logs/ledger-projection-contract.log',
+    )
+    return
+  }
+  const got = res.data
+  const expected = fixture.expectedProjection
+  const fails = []
+  if (got.asOf !== expected.asOf)
+    fails.push(`asOf ${got.asOf} != expected ${expected.asOf}`)
+  if (!registryEquals(got.projects ?? {}, expected.projects ?? {})) {
+    fails.push(`projects registry ${JSON.stringify(got.projects)} != expected`)
+  }
+  compareRecords('ledger-projection', got.records, expected.records, fails)
+  const projectedCost = (got.records ?? [])
+    .reduce((sum, r) => sum + BigInt(r.costPico ?? '0'), 0n)
+    .toString()
+  if (projectedCost !== fixture.expectedCostPico) {
+    fails.push(
+      `projected cost ${projectedCost} != expected ${fixture.expectedCostPico}`,
+    )
+  }
+  const projectedJson = JSON.stringify(got)
+  for (const forbidden of [
+    '/Users/',
+    'fixture-session',
+    'transcript',
+    'sha256:',
+  ]) {
+    if (projectedJson.includes(forbidden))
+      fails.push(`projected snapshot leaked ${forbidden}`)
+  }
+  record(
+    'ledger-projection-contract',
+    fails.length === 0,
+    fails.slice(0, 3).join('; ') ||
+      `${expected.records.length} ledger allocation record(s) projected with exact cost`,
+  )
+}
+
+// project-ingest-contract: drive the ingest's OFFLINE fixture path (committed durable ledger fixture +
+// scrubbed Codex/OpenClaw daily fixtures) and assert the produced snapshot attributes projects EXACTLY —
+// the registry, that Claude work reaches the opaque ledger projects (a degenerate all-__unattributed__
+// projector FAILs here), and that every record's project is registered. Verifier-OWNED (the assertion
+// lives here, not in a loop-editable ingest self-report).
+function projectIngestContractCheck() {
+  const outPath = join(LOG_DIR, 'project-ingest-snapshot.json')
+  try {
+    execSync(`node scripts/ingest.mjs --from-fixture --out ${q(outPath)}`, {
+      cwd: ROOT,
+      stdio: 'pipe',
+      timeout: 120000,
+    })
+  } catch (e) {
+    writeFileSync(
+      join(LOG_DIR, 'project-ingest-contract.log'),
+      `${e.stdout ?? ''}\n${e.stderr ?? ''}`,
+    )
+    record(
+      'project-ingest-contract',
+      false,
+      'fixture ingest failed — see .verify-logs/project-ingest-contract.log',
+    )
+    return
+  }
+  const snap = readJson(outPath)
   if (!snap || !snap.projects || !Array.isArray(snap.records)) {
-    record('project-ingest-contract', false, 'ingest produced no usable snapshot');
-    return;
+    record(
+      'project-ingest-contract',
+      false,
+      'ingest produced no usable snapshot',
+    )
+    return
   }
   const expectedRegistry = {
-    '/Users/dev/projects/yard-ops': { kind: 'repo', label: 'yard-ops' },
-    '/Users/dev/projects/marin-civic-graph': { kind: 'repo', label: 'marin-civic-graph' },
     __unattributed__: { kind: 'unattributed', label: 'Unattributed' },
+    p_alpha: { kind: 'repo', label: 'alpha' },
+    p_observatory: { kind: 'repo', label: 'agent-observatory' },
     __codex__: { kind: 'tool', label: 'Codex' },
     __openclaw__: { kind: 'tool', label: 'OpenClaw' },
-  };
-  const fails = [];
+  }
+  const fails = []
   if (!registryEquals(snap.projects, expectedRegistry)) {
-    fails.push(`projects registry ${JSON.stringify(snap.projects)} != expected`);
+    fails.push(`projects registry ${JSON.stringify(snap.projects)} != expected`)
   }
-  const claudeProjects = new Set(snap.records.filter((r) => r.source === 'claude').map((r) => r.project));
-  for (const k of ['/Users/dev/projects/yard-ops', '/Users/dev/projects/marin-civic-graph']) {
-    if (!claudeProjects.has(k)) fails.push(`claude never attributes to ${k} (degenerate resolver / ingest bypass?)`);
+  const claudeProjects = new Set(
+    snap.records.filter((r) => r.source === 'claude').map((r) => r.project),
+  )
+  for (const k of ['p_alpha', 'p_observatory']) {
+    if (!claudeProjects.has(k))
+      fails.push(
+        `claude never attributes to ${k} (degenerate resolver / ingest bypass?)`,
+      )
   }
-  for (const r of snap.records) if (!(r.project in snap.projects)) fails.push(`record project ${r.project} absent from registry`);
-  record('project-ingest-contract', fails.length === 0, fails.slice(0, 3).join('; ') || 'ingest attributes projects + registry exactly');
+  for (const r of snap.records)
+    if (!(r.project in snap.projects))
+      fails.push(`record project ${r.project} absent from registry`)
+  record(
+    'project-ingest-contract',
+    fails.length === 0,
+    fails.slice(0, 3).join('; ') ||
+      'ingest attributes projects + registry exactly',
+  )
 }
 
 // project-richness: the FROZEN synthetic snapshot must be a meaningful project surface — >= 3 repo
 // projects + the Unattributed + both tool sentinels, with a bounded Unattributed share — so the panel
 // oracle is never frozen against a degenerate fixture.
 function projectRichnessCheck() {
-  const snap = readJson(join(ROOT, 'data/fixtures/synthetic-snapshot.json'));
+  const snap = readJson(join(ROOT, 'data/fixtures/synthetic-snapshot.json'))
   if (!snap || !snap.projects || !Array.isArray(snap.records)) {
-    record('project-richness', false, 'synthetic-snapshot.json missing projects/records');
-    return;
+    record(
+      'project-richness',
+      false,
+      'synthetic-snapshot.json missing projects/records',
+    )
+    return
   }
-  const fails = [];
-  const repoCount = Object.values(snap.projects).filter((m) => m.kind === 'repo').length;
-  if (repoCount < 3) fails.push(`only ${repoCount} repo project(s) (need >= 3)`);
+  const fails = []
+  const repoCount = Object.values(snap.projects).filter(
+    (m) => m.kind === 'repo',
+  ).length
+  if (repoCount < 3) fails.push(`only ${repoCount} repo project(s) (need >= 3)`)
   for (const sentinel of ['__unattributed__', '__codex__', '__openclaw__']) {
-    if (!snap.projects[sentinel]) fails.push(`missing reserved project ${sentinel}`);
+    if (!snap.projects[sentinel])
+      fails.push(`missing reserved project ${sentinel}`)
   }
-  const tok = (r) => r.inputTokens + r.outputTokens + r.cacheCreationTokens + r.cacheReadTokens + r.reasoningTokens;
-  const gridKind = (p) => snap.projects[p]?.kind === 'repo' || snap.projects[p]?.kind === 'unattributed';
-  const grid = snap.records.filter((r) => gridKind(r.project));
-  const gridTokens = grid.reduce((s, r) => s + tok(r), 0);
-  const unattrTokens = grid.filter((r) => r.project === '__unattributed__').reduce((s, r) => s + tok(r), 0);
-  const share = gridTokens > 0 ? unattrTokens / gridTokens : 0;
-  if (share > 0.25) fails.push(`Unattributed grid share ${(share * 100).toFixed(1)}% > 25%`);
+  const tok = (r) =>
+    r.inputTokens +
+    r.outputTokens +
+    r.cacheCreationTokens +
+    r.cacheReadTokens +
+    r.reasoningTokens
+  const gridKind = (p) =>
+    snap.projects[p]?.kind === 'repo' ||
+    snap.projects[p]?.kind === 'unattributed'
+  const grid = snap.records.filter((r) => gridKind(r.project))
+  const gridTokens = grid.reduce((s, r) => s + tok(r), 0)
+  const unattrTokens = grid
+    .filter((r) => r.project === '__unattributed__')
+    .reduce((s, r) => s + tok(r), 0)
+  const share = gridTokens > 0 ? unattrTokens / gridTokens : 0
+  if (share > 0.25)
+    fails.push(`Unattributed grid share ${(share * 100).toFixed(1)}% > 25%`)
   record(
     'project-richness',
     fails.length === 0,
-    fails.slice(0, 3).join('; ') || `${repoCount} repos + sentinels · Unattributed ${(share * 100).toFixed(1)}% of grid`,
-  );
+    fails.slice(0, 3).join('; ') ||
+      `${repoCount} repos + sentinels · Unattributed ${(share * 100).toFixed(1)}% of grid`,
+  )
 }
 
 // ---- DEMO-READY: panel gates (over LIVE panels only — zero at baseline => vacuous) -------
 
 function panelsConfig() {
-  const c = readJson(join(ROOT, 'config/panels.json'));
-  return c && c.panels ? c : null;
+  const c = readJson(join(ROOT, 'config/panels.json'))
+  return c && c.panels ? c : null
 }
 // FROZEN required-panel set. verify.mjs is itself frozen (verifier-integrity), so this list
 // cannot be shrunk by the loop. It is NOT read from config/panels.json, which the loop edits —
@@ -927,8 +1296,8 @@ const REQUIRED_PANELS = [
   'activityFeed',
   'contributionHeatmap',
   'byProject',
-];
-const panelsRequired = () => REQUIRED_PANELS;
+]
+const panelsRequired = () => REQUIRED_PANELS
 // FROZEN panel key -> { its canonical route, its source dir under src/panels/ }. The frozen oracle
 // already asserts config.route == its frozen REGISTRY route; this binding lets `route-module-binding`
 // additionally assert that the MUTABLE src/App.tsx route table renders that route from the panel's
@@ -941,81 +1310,96 @@ const PANEL_MODULE_BINDING = {
   activityFeed: { route: '/activity-feed', dir: 'activity-feed' },
   contributionHeatmap: { route: '/contribution', dir: 'contribution-heatmap' },
   byProject: { route: '/by-project', dir: 'by-project' },
-};
+}
 function livePanels(cfg) {
   return Object.entries(cfg.panels)
     .filter(([, p]) => p.status === 'live')
-    .map(([key, p]) => ({ key, ...p }));
+    .map(([key, p]) => ({ key, ...p }))
 }
 function panelDemoFiles(dir) {
-  const d = join(ROOT, 'src', 'panels', dir);
-  if (!dir || !existsSync(d)) return [];
-  return readdirSync(d).filter((f) => f.endsWith('.demo.test.tsx'));
+  const d = join(ROOT, 'src', 'panels', dir)
+  if (!dir || !existsSync(d)) return []
+  return readdirSync(d).filter((f) => f.endsWith('.demo.test.tsx'))
 }
 // True iff `text` REALLY imports `symbol` from the frozen smoke AND calls it (after
 // stripping comments) — a commented-out line or a local shadow decl can't satisfy it.
 function importsHarnessSymbol(text, symbol) {
-  const s = stripComments(text);
+  const s = stripComments(text)
   const imp = new RegExp(
     `import[^;]*\\b${symbol}\\b[^;]*from\\s*['"]@/test-support/observatoryPanelSmoke['"]`,
-  );
-  const call = new RegExp(`\\b${symbol}\\s*\\(`);
-  const localDecl = new RegExp(`(?:function|const|let|var)\\s+${symbol}\\b`);
-  return imp.test(s) && call.test(s) && !localDecl.test(s);
+  )
+  const call = new RegExp(`\\b${symbol}\\s*\\(`)
+  const localDecl = new RegExp(`(?:function|const|let|var)\\s+${symbol}\\b`)
+  return imp.test(s) && call.test(s) && !localDecl.test(s)
 }
 
 // Each live panel's demo test must run via the demo vitest config (strong assertions in
 // describeLivePanel). Run it only when there is something live.
 function panelSmokeCheck(live) {
   if (live.length === 0) {
-    record('panel-smoke', true, 'no live panels (vacuous)');
-    return;
+    record('panel-smoke', true, 'no live panels (vacuous)')
+    return
   }
-  runCheck('panel-smoke', 'npx vitest run -c vitest.demo.config.ts', 180000);
+  runCheck('panel-smoke', 'npx vitest run -c vitest.demo.config.ts', 180000)
 }
 
 // Every live panel owns a *.demo.test.tsx (which panel-smoke then runs). Fails CLOSED.
 function panelsHaveDemoCheck(live) {
   if (live.length === 0) {
-    record('panels-have-demo', true, 'no live panels (vacuous)');
-    return;
+    record('panels-have-demo', true, 'no live panels (vacuous)')
+    return
   }
-  const missing = live.filter((p) => panelDemoFiles(p.dir).length === 0).map((p) => p.key);
+  const missing = live
+    .filter((p) => panelDemoFiles(p.dir).length === 0)
+    .map((p) => p.key)
   record(
     'panels-have-demo',
     missing.length === 0,
-    missing.length ? `live panel(s) without *.demo.test.tsx: ${missing.join(', ')}` : `${live.length} live panel(s) gated`,
-  );
+    missing.length
+      ? `live panel(s) without *.demo.test.tsx: ${missing.join(', ')}`
+      : `${live.length} live panel(s) gated`,
+  )
 }
 
 // Each live panel's demo test must actually call describeLivePanel; required panels must
 // additionally declare BOTH controls — a trivial passing test must not satisfy the gate.
 function demoTestsUseHarnessCheck(live) {
   if (live.length === 0) {
-    record('demo-tests-use-harness', true, 'no live panels (vacuous)');
-    return;
+    record('demo-tests-use-harness', true, 'no live panels (vacuous)')
+    return
   }
-  const required = new Set(panelsRequired());
-  const problems = [];
+  const required = new Set(panelsRequired())
+  const problems = []
   for (const p of live) {
-    const raws = panelDemoFiles(p.dir).map((f) => readFileSync(join(ROOT, 'src', 'panels', p.dir, f), 'utf8'));
+    const raws = panelDemoFiles(p.dir).map((f) =>
+      readFileSync(join(ROOT, 'src', 'panels', p.dir, f), 'utf8'),
+    )
     if (!raws.some((t) => importsHarnessSymbol(t, 'describeLivePanel'))) {
-      problems.push(`${p.key} (no real describeLivePanel import+call)`);
-      continue;
+      problems.push(`${p.key} (no real describeLivePanel import+call)`)
+      continue
     }
     if (required.has(p.key)) {
       const both = raws.some((raw) => {
-        const m = stripComments(raw).match(/controls\s*:\s*\{([^}]*)\}/);
-        return Boolean(m) && /range\s*:\s*true/.test(m[1]) && /source\s*:\s*true/.test(m[1]);
-      });
-      if (!both) problems.push(`${p.key} (needs controls: { range: true, source: true })`);
+        const m = stripComments(raw).match(/controls\s*:\s*\{([^}]*)\}/)
+        return (
+          Boolean(m) &&
+          /range\s*:\s*true/.test(m[1]) &&
+          /source\s*:\s*true/.test(m[1])
+        )
+      })
+      if (!both)
+        problems.push(
+          `${p.key} (needs controls: { range: true, source: true })`,
+        )
     }
   }
   record(
     'demo-tests-use-harness',
     problems.length === 0,
-    problems.length ? problems.join('; ') : `${live.length} live panel(s) use the harness`,
-  );
+    problems.length
+      ? problems.join('; ')
+      : `${live.length} live panel(s) use the harness`,
+  )
 }
 
 // route-module-binding: the frozen oracle renders each live panel by NAVIGATING the REAL route
@@ -1027,64 +1411,76 @@ function demoTestsUseHarnessCheck(live) {
 // whose route is missing, points elsewhere, or whose element is not imported from src/panels/<dir>/.
 function routeModuleBindingCheck(live) {
   if (live.length === 0) {
-    record('route-module-binding', true, 'no live panels (vacuous)');
-    return;
+    record('route-module-binding', true, 'no live panels (vacuous)')
+    return
   }
-  const appPath = join(ROOT, 'src/App.tsx');
+  const appPath = join(ROOT, 'src/App.tsx')
   if (!existsSync(appPath)) {
-    record('route-module-binding', false, 'src/App.tsx missing');
-    return;
+    record('route-module-binding', false, 'src/App.tsx missing')
+    return
   }
-  const code = stripComments(readFileSync(appPath, 'utf8'));
+  const code = stripComments(readFileSync(appPath, 'utf8'))
   // identifier -> import specifier (default + named, incl. `as` aliases).
-  const imports = new Map();
-  for (const m of code.matchAll(/import\s+(?:([A-Za-z0-9_$]+)\s*,?\s*)?(?:\{([^}]*)\})?\s*from\s*['"]([^'"]+)['"]/g)) {
-    const spec = m[3];
-    if (m[1]) imports.set(m[1].trim(), spec);
+  const imports = new Map()
+  for (const m of code.matchAll(
+    /import\s+(?:([A-Za-z0-9_$]+)\s*,?\s*)?(?:\{([^}]*)\})?\s*from\s*['"]([^'"]+)['"]/g,
+  )) {
+    const spec = m[3]
+    if (m[1]) imports.set(m[1].trim(), spec)
     if (m[2]) {
       for (const part of m[2].split(',')) {
-        const name = part.split(/\s+as\s+/).pop()?.trim();
-        if (name) imports.set(name, spec);
+        const name = part
+          .split(/\s+as\s+/)
+          .pop()
+          ?.trim()
+        if (name) imports.set(name, spec)
       }
     }
   }
   // route path -> rendered component identifier (non-greedy to the inner element's `/>`).
-  const routeComp = new Map();
+  const routeComp = new Map()
   for (const tag of code.match(/<Route\b[\s\S]*?\/>/g) ?? []) {
-    const pm = tag.match(/path=(?:"([^"]*)"|'([^']*)')/);
-    const em = tag.match(/element=\{<\s*([A-Za-z0-9_$]+)/);
-    if (pm && em) routeComp.set(pm[1] ?? pm[2], em[1]);
+    const pm = tag.match(/path=(?:"([^"]*)"|'([^']*)')/)
+    const em = tag.match(/element=\{<\s*([A-Za-z0-9_$]+)/)
+    if (pm && em) routeComp.set(pm[1] ?? pm[2], em[1])
   }
-  const fails = [];
+  const fails = []
   for (const p of live) {
-    const bind = PANEL_MODULE_BINDING[p.key];
+    const bind = PANEL_MODULE_BINDING[p.key]
     if (!bind) {
-      fails.push(`${p.key}: no frozen module binding (unknown live panel)`);
-      continue;
+      fails.push(`${p.key}: no frozen module binding (unknown live panel)`)
+      continue
     }
     if (p.route !== bind.route) {
-      fails.push(`${p.key}: config route "${p.route}" != frozen "${bind.route}"`);
-      continue;
+      fails.push(
+        `${p.key}: config route "${p.route}" != frozen "${bind.route}"`,
+      )
+      continue
     }
-    const comp = routeComp.get(bind.route);
+    const comp = routeComp.get(bind.route)
     if (!comp) {
-      fails.push(`${p.key}: no <Route path="${bind.route}"> in src/App.tsx`);
-      continue;
+      fails.push(`${p.key}: no <Route path="${bind.route}"> in src/App.tsx`)
+      continue
     }
-    const spec = imports.get(comp);
+    const spec = imports.get(comp)
     if (!spec) {
-      fails.push(`${p.key}: route ${bind.route} renders <${comp}> not imported in src/App.tsx`);
-      continue;
+      fails.push(
+        `${p.key}: route ${bind.route} renders <${comp}> not imported in src/App.tsx`,
+      )
+      continue
     }
     if (!new RegExp(`(^|/|@/)panels/${bind.dir}/`).test(spec)) {
-      fails.push(`${p.key}: route ${bind.route} renders <${comp}> from "${spec}", not src/panels/${bind.dir}/`);
+      fails.push(
+        `${p.key}: route ${bind.route} renders <${comp}> from "${spec}", not src/panels/${bind.dir}/`,
+      )
     }
   }
   record(
     'route-module-binding',
     fails.length === 0,
-    fails.slice(0, 3).join('; ') || `${live.length} live route(s) bound to their panel module`,
-  );
+    fails.slice(0, 3).join('; ') ||
+      `${live.length} live route(s) bound to their panel module`,
+  )
 }
 
 // The FROZEN panel oracle (vitest.oracle.config.ts → tests/oracle/panelOracle.test.tsx) is the
@@ -1100,21 +1496,21 @@ function routeModuleBindingCheck(live) {
 // oracle echoes into the result, and (b) require the vitest process to EXIT 0. A gate may only go
 // green when `ranClean` — exit 0 AND echoed nonce == injected nonce. A forged/stale result, or any
 // non-zero oracle run, fails every panel gate closed regardless of the JSON's contents.
-let PANEL_ORACLE;
+let PANEL_ORACLE
 function runPanelOracle(live) {
-  if (PANEL_ORACLE !== undefined) return PANEL_ORACLE;
+  if (PANEL_ORACLE !== undefined) return PANEL_ORACLE
   if (live.length === 0) {
-    PANEL_ORACLE = { vacuous: true, ranClean: true };
-    return PANEL_ORACLE;
+    PANEL_ORACLE = { vacuous: true, ranClean: true }
+    return PANEL_ORACLE
   }
-  const resultPath = join(LOG_DIR, 'panel-oracle-result.json');
+  const resultPath = join(LOG_DIR, 'panel-oracle-result.json')
   try {
-    rmSync(resultPath, { force: true });
+    rmSync(resultPath, { force: true })
   } catch {
     /* best effort */
   }
-  const nonce = randomBytes(24).toString('hex');
-  let exitOk = false;
+  const nonce = randomBytes(24).toString('hex')
+  let exitOk = false
   try {
     const out = execSync('npx vitest run -c vitest.oracle.config.ts', {
       cwd: ROOT,
@@ -1122,37 +1518,42 @@ function runPanelOracle(live) {
       encoding: 'utf8',
       timeout: 240000,
       env: { ...process.env, ORACLE_RUN_NONCE: nonce },
-    });
-    writeFileSync(join(LOG_DIR, 'panel-oracle.log'), out);
-    exitOk = true;
+    })
+    writeFileSync(join(LOG_DIR, 'panel-oracle.log'), out)
+    exitOk = true
   } catch (e) {
     // Non-zero exit = a category failed, the oracle crashed, or the run was tampered with. We keep
     // the log for diagnosis but DO NOT trust any result it may have left behind.
-    writeFileSync(join(LOG_DIR, 'panel-oracle.log'), `${e.stdout ?? ''}\n${e.stderr ?? ''}\n${e.message ?? ''}`);
+    writeFileSync(
+      join(LOG_DIR, 'panel-oracle.log'),
+      `${e.stdout ?? ''}\n${e.stderr ?? ''}\n${e.message ?? ''}`,
+    )
   }
-  const data = readJson(resultPath);
-  const nonceOk = Boolean(data) && data.nonce === nonce;
+  const data = readJson(resultPath)
+  const nonceOk = Boolean(data) && data.nonce === nonce
   PANEL_ORACLE = {
     ranClean: exitOk && nonceOk,
     exitOk,
     nonceOk,
     data: data ?? null,
-  };
-  return PANEL_ORACLE;
+  }
+  return PANEL_ORACLE
 }
 
 // Detail string for a panel gate that cannot trust the oracle run (fail-closed).
 function oracleUntrustedDetail(oracle) {
-  if (!oracle.exitOk) return 'oracle vitest run exited non-zero — see .verify-logs/panel-oracle.log';
-  if (!oracle.nonceOk) return 'oracle result missing/forged (provenance nonce mismatch) — see .verify-logs/panel-oracle.log';
-  return 'oracle did not run cleanly — see .verify-logs/panel-oracle.log';
+  if (!oracle.exitOk)
+    return 'oracle vitest run exited non-zero — see .verify-logs/panel-oracle.log'
+  if (!oracle.nonceOk)
+    return 'oracle result missing/forged (provenance nonce mismatch) — see .verify-logs/panel-oracle.log'
+  return 'oracle did not run cleanly — see .verify-logs/panel-oracle.log'
 }
 
 // Did the oracle check every currently-live panel? (Guards against a live panel the frozen oracle
 // has no spec for, or a crash that skipped one.)
 function oracleCoverageGap(live, category) {
-  const checked = new Set(category?.panelsChecked ?? []);
-  return live.filter((p) => !checked.has(p.key)).map((p) => p.key);
+  const checked = new Set(category?.panelsChecked ?? [])
+  return live.filter((p) => !checked.has(p.key)).map((p) => p.key)
 }
 
 // panel-golden: for every live panel, the raw house-style DOM values rendered through the REAL
@@ -1160,28 +1561,38 @@ function oracleCoverageGap(live, category) {
 // equal that too). Real value-equality — NOT coverage — now lives in the frozen oracle.
 function panelGoldenCheck(live, oracle) {
   if (live.length === 0) {
-    record('panel-golden', true, 'no live panels (vacuous)');
-    return;
+    record('panel-golden', true, 'no live panels (vacuous)')
+    return
   }
   if (!oracle.ranClean) {
-    record('panel-golden', false, oracleUntrustedDetail(oracle));
-    return;
+    record('panel-golden', false, oracleUntrustedDetail(oracle))
+    return
   }
-  const v = oracle.data ? oracle.data.values : null;
+  const v = oracle.data ? oracle.data.values : null
   if (!v) {
-    record('panel-golden', false, 'frozen panel oracle produced no value-equality result — see .verify-logs/panel-oracle.log');
-    return;
+    record(
+      'panel-golden',
+      false,
+      'frozen panel oracle produced no value-equality result — see .verify-logs/panel-oracle.log',
+    )
+    return
   }
-  const gap = oracleCoverageGap(live, v);
+  const gap = oracleCoverageGap(live, v)
   if (gap.length) {
-    record('panel-golden', false, `oracle did not value-check live panel(s): ${gap.join(', ')}`);
-    return;
+    record(
+      'panel-golden',
+      false,
+      `oracle did not value-check live panel(s): ${gap.join(', ')}`,
+    )
+    return
   }
   record(
     'panel-golden',
     v.ok === true,
-    v.ok === true ? `${live.length} live panel(s): real-route raw DOM == snapshot recompute` : (v.fails ?? []).slice(0, 3).join('; '),
-  );
+    v.ok === true
+      ? `${live.length} live panel(s): real-route raw DOM == snapshot recompute`
+      : (v.fails ?? []).slice(0, 3).join('; '),
+  )
 }
 
 // pipeline-coupling: cost is linear in the rate card. The frozen oracle re-renders each live
@@ -1190,39 +1601,56 @@ function panelGoldenCheck(live, oracle) {
 // linearity — NOT a fixture length check — now lives in the frozen oracle.
 function pipelineCouplingCheck(live, oracle) {
   if (live.length === 0) {
-    record('pipeline-coupling', true, 'no live panels (vacuous)');
-    return;
+    record('pipeline-coupling', true, 'no live panels (vacuous)')
+    return
   }
   if (!oracle.ranClean) {
-    record('pipeline-coupling', false, oracleUntrustedDetail(oracle));
-    return;
+    record('pipeline-coupling', false, oracleUntrustedDetail(oracle))
+    return
   }
-  const c = oracle.data ? oracle.data.coupling : null;
+  const c = oracle.data ? oracle.data.coupling : null
   if (!c) {
-    record('pipeline-coupling', false, 'frozen panel oracle produced no coupling result — see .verify-logs/panel-oracle.log');
-    return;
+    record(
+      'pipeline-coupling',
+      false,
+      'frozen panel oracle produced no coupling result — see .verify-logs/panel-oracle.log',
+    )
+    return
   }
   // contributionHeatmap's DEFAULT mode is Tokens (no cost cell), so the GENERIC coupling oracle skips
   // it; its cost-scaling + token-invariance are proven per-mode by the dedicated heatmap-modes oracle.
   // So it is exempt from the generic coverage gap, but IF live it must have a clean heatmap-modes result.
-  const HEATMAP = 'contributionHeatmap';
-  const gap = oracleCoverageGap(live.filter((p) => p.key !== HEATMAP), c);
+  const HEATMAP = 'contributionHeatmap'
+  const gap = oracleCoverageGap(
+    live.filter((p) => p.key !== HEATMAP),
+    c,
+  )
   if (gap.length) {
-    record('pipeline-coupling', false, `oracle did not couple-check live panel(s): ${gap.join(', ')}`);
-    return;
+    record(
+      'pipeline-coupling',
+      false,
+      `oracle did not couple-check live panel(s): ${gap.join(', ')}`,
+    )
+    return
   }
   if (live.some((p) => p.key === HEATMAP)) {
-    const hm = oracle.data ? oracle.data.heatmapModes : null;
+    const hm = oracle.data ? oracle.data.heatmapModes : null
     if (!hm || hm.applicable !== true || hm.ok !== true) {
-      record('pipeline-coupling', false, `contributionHeatmap coupling not proven by heatmap-modes: ${((hm && hm.fails) ?? ['no heatmap-modes result']).slice(0, 2).join('; ')}`);
-      return;
+      record(
+        'pipeline-coupling',
+        false,
+        `contributionHeatmap coupling not proven by heatmap-modes: ${((hm && hm.fails) ?? ['no heatmap-modes result']).slice(0, 2).join('; ')}`,
+      )
+      return
     }
   }
   record(
     'pipeline-coupling',
     c.ok === true,
-    c.ok === true ? `${live.length} live panel(s): cost/rate scale with the card, others invariant` : (c.fails ?? []).slice(0, 3).join('; '),
-  );
+    c.ok === true
+      ? `${live.length} live panel(s): cost/rate scale with the card, others invariant`
+      : (c.fails ?? []).slice(0, 3).join('; '),
+  )
 }
 
 // scope-persistence: cross-panel shared scope can only be exercised with >=2 live panels. Below 2
@@ -1237,22 +1665,30 @@ function scopePersistenceCheck(live, oracle) {
       live.length === 0
         ? 'no live panels (vacuous)'
         : 'n/a below 2 live panels (needs a 2nd live destination to test cross-panel scope)',
-    );
-    return;
+    )
+    return
   }
   if (!oracle.ranClean) {
-    record('scope-persistence', false, oracleUntrustedDetail(oracle));
-    return;
+    record('scope-persistence', false, oracleUntrustedDetail(oracle))
+    return
   }
-  const s = oracle.data ? oracle.data.scopeMatrix : null;
+  const s = oracle.data ? oracle.data.scopeMatrix : null
   if (!s) {
-    record('scope-persistence', false, 'frozen panel oracle produced no scope-matrix result — see .verify-logs/panel-oracle.log');
-    return;
+    record(
+      'scope-persistence',
+      false,
+      'frozen panel oracle produced no scope-matrix result — see .verify-logs/panel-oracle.log',
+    )
+    return
   }
-  const gap = oracleCoverageGap(live, s);
+  const gap = oracleCoverageGap(live, s)
   if (gap.length) {
-    record('scope-persistence', false, `oracle did not scope-check live panel(s): ${gap.join(', ')}`);
-    return;
+    record(
+      'scope-persistence',
+      false,
+      `oracle did not scope-check live panel(s): ${gap.join(', ')}`,
+    )
+    return
   }
   record(
     'scope-persistence',
@@ -1260,23 +1696,31 @@ function scopePersistenceCheck(live, oracle) {
     s.ok === true && s.applicable === true
       ? `shared scope persists across the real nav matrix (${live.length} live panels)`
       : (s.fails ?? []).slice(0, 3).join('; ') || 'scope matrix not applicable',
-  );
+  )
 }
 
 // ---- DEMO-READY: loop-safety + provenance -----------------------------------------------
 
 // progress-consistency: no REQUIRED panel may sit in PROGRESS.md's Blocked / Skipped section.
 function progressConsistencyCheck() {
-  const p = join(ROOT, 'PROGRESS.md');
+  const p = join(ROOT, 'PROGRESS.md')
   if (!existsSync(p)) {
-    record('progress-consistency', false, 'PROGRESS.md missing');
-    return;
+    record('progress-consistency', false, 'PROGRESS.md missing')
+    return
   }
-  const md = readFileSync(p, 'utf8');
-  const m = md.match(/##\s*Blocked\s*\/\s*Skipped([\s\S]*?)(?:\n##\s|$)/i);
-  const section = m ? m[1] : '';
-  const parked = panelsRequired().filter((name) => new RegExp(`\\b${name}\\b`).test(section));
-  record('progress-consistency', parked.length === 0, parked.length ? `required item(s) parked: ${parked.join(', ')}` : 'no required item parked');
+  const md = readFileSync(p, 'utf8')
+  const m = md.match(/##\s*Blocked\s*\/\s*Skipped([\s\S]*?)(?:\n##\s|$)/i)
+  const section = m ? m[1] : ''
+  const parked = panelsRequired().filter((name) =>
+    new RegExp(`\\b${name}\\b`).test(section),
+  )
+  record(
+    'progress-consistency',
+    parked.length === 0,
+    parked.length
+      ? `required item(s) parked: ${parked.join(', ')}`
+      : 'no required item parked',
+  )
 }
 
 const FROZEN_FILES = [
@@ -1291,6 +1735,9 @@ const FROZEN_FILES = [
   'scripts/ingest.mjs',
   'scripts/ingestArgs.ts',
   'src/domain/buildSnapshot.ts',
+  'src/domain/costPico.ts',
+  'src/domain/ledgerProjection.ts',
+  'src/domain/normalizeCost.ts',
   // Frozen buildSnapshot.ts imports the reserved-project sentinels + their kinds/labels from here,
   // and validateSnapshot trusts that truth — so the registry constants must not drift post-baseline.
   'src/domain/projects.ts',
@@ -1330,6 +1777,7 @@ const FROZEN_FILES = [
   'data/fixtures/decoder/claude-instances.json',
   'data/fixtures/decoder/codex-daily.json',
   'data/fixtures/decoder/openclaw-daily.json',
+  'data/fixtures/ledger-projection.json',
   // The pure-resolver attribution contract (0-B) — frozen so the loop can't weaken the project-
   // attribution-contract gate (0-E) by editing its expectations.
   'data/fixtures/project-attribution.json',
@@ -1342,85 +1790,124 @@ const FROZEN_FILES = [
   'data/fixtures/synthetic-snapshot.json',
   'src/domain/syntheticSnapshot.ts',
   'scripts/data-generate.ts',
-];
+]
 
 // Resolve the baseline tag locally; require it pushed (same SHA on origin), an ancestor of
 // HEAD, and — when a contract SHA is supplied — equal to it. Returns the local commit or a
 // string error.
 function resolveBaselineTag() {
-  let local;
+  let local
   try {
-    local = git(`rev-parse ${BASELINE_TAG}^{commit}`);
+    local = git(`rev-parse ${BASELINE_TAG}^{commit}`)
   } catch {
-    return { error: `${BASELINE_TAG} tag missing (create + push it pre-launch)` };
+    return {
+      error: `${BASELINE_TAG} tag missing (create + push it pre-launch)`,
+    }
   }
-  let remote = '';
+  let remote = ''
   try {
     remote = execSync(
       `git ls-remote origin refs/tags/${BASELINE_TAG} "refs/tags/${BASELINE_TAG}^{}"`,
-      { cwd: ROOT, encoding: 'utf8', timeout: 30000, stdio: ['ignore', 'pipe', 'pipe'] },
-    ).trim();
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+        timeout: 30000,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    ).trim()
   } catch {
     /* no origin / no such tag — leave remote empty (treated as not pushed) */
   }
-  const remoteShas = remote ? remote.split('\n').map((l) => l.split(/\s+/)[0]) : [];
-  if (!remoteShas.includes(local)) return { error: `${BASELINE_TAG} not pushed / differs from origin` };
+  const remoteShas = remote
+    ? remote.split('\n').map((l) => l.split(/\s+/)[0])
+    : []
+  if (!remoteShas.includes(local))
+    return { error: `${BASELINE_TAG} not pushed / differs from origin` }
   try {
-    execSync(`git merge-base --is-ancestor ${BASELINE_TAG} HEAD`, { cwd: ROOT, stdio: 'ignore' });
+    execSync(`git merge-base --is-ancestor ${BASELINE_TAG} HEAD`, {
+      cwd: ROOT,
+      stdio: 'ignore',
+    })
   } catch {
-    return { error: `${BASELINE_TAG} is not an ancestor of HEAD` };
+    return { error: `${BASELINE_TAG} is not an ancestor of HEAD` }
   }
   if (EXPECTED_SHA && local !== EXPECTED_SHA) {
-    return { error: `${BASELINE_TAG} (${local.slice(0, 12)}) != supplied --expected-baseline-sha (${EXPECTED_SHA.slice(0, 12)})` };
+    return {
+      error: `${BASELINE_TAG} (${local.slice(0, 12)}) != supplied --expected-baseline-sha (${EXPECTED_SHA.slice(0, 12)})`,
+    }
   }
-  return { local };
+  return { local }
 }
 
 // baseline-tag: the tag exists, is pushed, is an ancestor of HEAD, and (if supplied) == the
 // contract SHA.
 function baselineTagCheck() {
-  const r = resolveBaselineTag();
-  record('baseline-tag', !r.error, r.error ?? (EXPECTED_SHA ? 'tag present, pushed, ancestor, == contract SHA' : 'tag present, pushed, ancestor'));
+  const r = resolveBaselineTag()
+  record(
+    'baseline-tag',
+    !r.error,
+    r.error ??
+      (EXPECTED_SHA
+        ? 'tag present, pushed, ancestor, == contract SHA'
+        : 'tag present, pushed, ancestor'),
+  )
 }
 
 // verifier-integrity: the COMMITTED (HEAD) blob of every frozen file byte-matches the tag.
 function verifierIntegrityCheck() {
-  const r = resolveBaselineTag();
+  const r = resolveBaselineTag()
   if (r.error) {
-    record('verifier-integrity', false, r.error);
-    return;
+    record('verifier-integrity', false, r.error)
+    return
   }
-  const changed = [];
+  const changed = []
   for (const f of FROZEN_FILES) {
     try {
-      if (git(`rev-parse HEAD:${f}`) !== git(`rev-parse ${BASELINE_TAG}:${f}`)) changed.push(f);
+      if (git(`rev-parse HEAD:${f}`) !== git(`rev-parse ${BASELINE_TAG}:${f}`))
+        changed.push(f)
     } catch {
-      changed.push(`${f} (missing)`);
+      changed.push(`${f} (missing)`)
     }
   }
-  record('verifier-integrity', changed.length === 0, changed.length ? `frozen file(s) changed vs baseline: ${changed.slice(0, 3).join(', ')}` : 'frozen files unmodified');
+  record(
+    'verifier-integrity',
+    changed.length === 0,
+    changed.length
+      ? `frozen file(s) changed vs baseline: ${changed.slice(0, 3).join(', ')}`
+      : 'frozen files unmodified',
+  )
 }
 
 // COMPLETE only: all four required panels must be live.
 function requiredPanelsLiveCheck() {
-  const cfg = panelsConfig();
+  const cfg = panelsConfig()
   if (!cfg) {
-    record('required-panels-live', false, 'config/panels.json unreadable');
-    return;
+    record('required-panels-live', false, 'config/panels.json unreadable')
+    return
   }
   // Defense: the bar uses the frozen REQUIRED_PANELS, but if the loop tampered config.required
   // to a different set, flag it rather than silently ignore.
-  const cfgReq = (Array.isArray(cfg.required) ? [...cfg.required] : []).sort().join(',');
+  const cfgReq = (Array.isArray(cfg.required) ? [...cfg.required] : [])
+    .sort()
+    .join(',')
   if (cfgReq !== [...REQUIRED_PANELS].sort().join(',')) {
-    record('required-panels-live', false, `config.required ${JSON.stringify(cfg.required)} != frozen REQUIRED_PANELS`);
-    return;
+    record(
+      'required-panels-live',
+      false,
+      `config.required ${JSON.stringify(cfg.required)} != frozen REQUIRED_PANELS`,
+    )
+    return
   }
-  const notLive = REQUIRED_PANELS.filter((k) => cfg.panels[k]?.status !== 'live');
+  const notLive = REQUIRED_PANELS.filter(
+    (k) => cfg.panels[k]?.status !== 'live',
+  )
   record(
     'required-panels-live',
     notLive.length === 0,
-    notLive.length ? `not live: ${notLive.join(', ')}` : `all ${REQUIRED_PANELS.length} required panels live`,
-  );
+    notLive.length
+      ? `not live: ${notLive.join(', ')}`
+      : `all ${REQUIRED_PANELS.length} required panels live`,
+  )
 }
 
 // ---- livelock failure history -----------------------------------------------------------
@@ -1434,99 +1921,129 @@ const ENV_GATES = new Set([
   'baseline-tag',
   'verifier-integrity',
   'required-panels-live',
-]);
+])
 function appendFailureHistory() {
-  const file = join(LOG_DIR, 'failure-history.json');
-  let hist = [];
+  const file = join(LOG_DIR, 'failure-history.json')
+  let hist = []
   try {
-    const j = JSON.parse(readFileSync(file, 'utf8'));
-    if (Array.isArray(j)) hist = j;
+    const j = JSON.parse(readFileSync(file, 'utf8'))
+    if (Array.isArray(j)) hist = j
   } catch {
     /* start fresh */
   }
-  const failures = checks.filter((c) => c.status === 'fail' && !ENV_GATES.has(c.name)).map((c) => c.name);
-  hist.push({ ts: new Date().toISOString(), mode: MODE, failures });
-  writeFileSync(file, `${JSON.stringify(hist.slice(-20), null, 2)}\n`);
+  const failures = checks
+    .filter((c) => c.status === 'fail' && !ENV_GATES.has(c.name))
+    .map((c) => c.name)
+  hist.push({ ts: new Date().toISOString(), mode: MODE, failures })
+  writeFileSync(file, `${JSON.stringify(hist.slice(-20), null, 2)}\n`)
 }
 function livelockGuardCheck() {
   try {
-    execSync('node scripts/livelock-guard.mjs', { cwd: ROOT, encoding: 'utf8', timeout: 30000 });
-    record('livelock-guard', true);
+    execSync('node scripts/livelock-guard.mjs', {
+      cwd: ROOT,
+      encoding: 'utf8',
+      timeout: 30000,
+    })
+    record('livelock-guard', true)
   } catch (e) {
-    writeFileSync(join(LOG_DIR, 'livelock-guard.log'), `${e.stdout ?? ''}\n${e.stderr ?? ''}`);
-    record('livelock-guard', false, 'livelock detected (===BLOCKED===) — see .verify-logs/livelock-guard.log');
+    writeFileSync(
+      join(LOG_DIR, 'livelock-guard.log'),
+      `${e.stdout ?? ''}\n${e.stderr ?? ''}`,
+    )
+    record(
+      'livelock-guard',
+      false,
+      'livelock detected (===BLOCKED===) — see .verify-logs/livelock-guard.log',
+    )
   }
 }
 
 // ---- run --------------------------------------------------------------------------------
 
-runCheck('tests', 'npm run test:run');
-runCheck('lint', 'npm run lint', 180000);
-runCheck('tsc', 'npx tsc --noEmit', 180000);
-runCheck('pricing-verify', 'npm --workspace packages/pricing run verify', 180000);
-identityCheck();
-toolchainIntegrityCheck();
+runCheck('tests', 'npm run test:run')
+runCheck('lint', 'npm run lint', 180000)
+runCheck('tsc', 'npx tsc --noEmit', 180000)
+runCheck(
+  'pricing-verify',
+  'npm --workspace packages/pricing run verify',
+  180000,
+)
+identityCheck()
+toolchainIntegrityCheck()
 
 if (DEMO) {
-  runCheck('build', 'npm run build', 300000);
-  dataRichnessCheck();
-  byteStabilityCheck();
-  clockDeterminismCheck();
-  moneyEncodingCheck();
-  importBoundaryCheck();
-  envDetectionBanCheck();
-  noEgressCheck();
-  scriptContractCheck();
-  ccusageVersionCheck();
-  normalizationGoldenCheck();
-  normalizationPropertyCheck();
-  decoderContractCheck();
-  ingestGates();
-  projectAttributionContractCheck();
-  instancesDecoderContractCheck();
-  projectIngestContractCheck();
-  projectRichnessCheck();
+  runCheck('build', 'npm run build', 300000)
+  dataRichnessCheck()
+  byteStabilityCheck()
+  clockDeterminismCheck()
+  moneyEncodingCheck()
+  importBoundaryCheck()
+  envDetectionBanCheck()
+  noEgressCheck()
+  localOutputUntrackedCheck()
+  trackedPrivateLeakScanCheck()
+  scriptContractCheck()
+  ccusageVersionCheck()
+  normalizationGoldenCheck()
+  normalizationPropertyCheck()
+  decoderContractCheck()
+  ingestGates()
+  projectAttributionContractCheck()
+  instancesDecoderContractCheck()
+  ledgerProjectionContractCheck()
+  projectIngestContractCheck()
+  projectRichnessCheck()
 
-  const cfg = panelsConfig();
-  const live = cfg ? livePanels(cfg) : [];
-  panelSmokeCheck(live);
-  panelsHaveDemoCheck(live);
-  demoTestsUseHarnessCheck(live);
-  routeModuleBindingCheck(live);
-  const panelOracle = runPanelOracle(live);
-  panelGoldenCheck(live, panelOracle);
-  pipelineCouplingCheck(live, panelOracle);
-  scopePersistenceCheck(live, panelOracle);
+  const cfg = panelsConfig()
+  const live = cfg ? livePanels(cfg) : []
+  panelSmokeCheck(live)
+  panelsHaveDemoCheck(live)
+  demoTestsUseHarnessCheck(live)
+  routeModuleBindingCheck(live)
+  const panelOracle = runPanelOracle(live)
+  panelGoldenCheck(live, panelOracle)
+  pipelineCouplingCheck(live, panelOracle)
+  scopePersistenceCheck(live, panelOracle)
 
-  progressConsistencyCheck();
-  verifierIntegrityCheck();
-  baselineTagCheck();
-  gitCheck('git-clean', () => git('status --porcelain') === '');
-  gitCheck('git-author', () => git('log -1 --format=%ae') === 'stuart@eastpeak.cc');
-  gitCheck('git-pushed', () => git('rev-parse HEAD') === git('rev-parse @{u}'));
+  progressConsistencyCheck()
+  verifierIntegrityCheck()
+  baselineTagCheck()
+  gitCheck('git-clean', () => git('status --porcelain') === '')
+  gitCheck(
+    'git-author',
+    () => git('log -1 --format=%ae') === 'stuart@eastpeak.cc',
+  )
+  gitCheck('git-pushed', () => git('rev-parse HEAD') === git('rev-parse @{u}'))
   if (COMPLETE) {
-    requiredPanelsLiveCheck();
+    requiredPanelsLiveCheck()
     // v2 completion must NOT tolerate a skipped/PENDING project gate (v1's PASS tolerates PENDING).
-    // The four gates never call recordPending, so this only ever fires on an unexpected non-pass.
-    const notPassing = PROJECT_GATES.filter((n) => checks.find((c) => c.name === n)?.status !== 'pass');
+    // These gates never call recordPending, so this only ever fires on an unexpected non-pass.
+    const notPassing = PROJECT_GATES.filter(
+      (n) => checks.find((c) => c.name === n)?.status !== 'pass',
+    )
     record(
       'project-gates-non-pending',
       notPassing.length === 0,
-      notPassing.length ? `project gate(s) not passing: ${notPassing.join(', ')}` : 'all 4 project gates pass (non-PENDING)',
-    );
+      notPassing.length
+        ? `project gate(s) not passing: ${notPassing.join(', ')}`
+        : `all ${PROJECT_GATES.length} project gates pass (non-PENDING)`,
+    )
   }
 
   // Record this run's app-logic failures, then run the (frozen) livelock guard over them.
-  appendFailureHistory();
-  livelockGuardCheck();
+  appendFailureHistory()
+  livelockGuardCheck()
 }
 
-const allPass = checks.every((c) => c.status !== 'fail');
+const allPass = checks.every((c) => c.status !== 'fail')
 const lines = [
   `===VERIFY:${MODE}:BEGIN===`,
-  ...checks.map((c) => `${c.name}: ${c.status.toUpperCase()}${c.detail ? ` (${c.detail})` : ''}`),
+  ...checks.map(
+    (c) =>
+      `${c.name}: ${c.status.toUpperCase()}${c.detail ? ` (${c.detail})` : ''}`,
+  ),
   `RESULT: ${allPass ? 'PASS' : 'FAIL'}`,
   `===VERIFY:${MODE}:END===`,
-];
-process.stdout.write(`${lines.join('\n')}\n`);
-process.exit(allPass ? 0 : 1);
+]
+process.stdout.write(`${lines.join('\n')}\n`)
+process.exit(allPass ? 0 : 1)
